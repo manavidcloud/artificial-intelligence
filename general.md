@@ -1,0 +1,1 @@
+1. Install codex extention for openai (chatgpt) pro only to utilise it.
