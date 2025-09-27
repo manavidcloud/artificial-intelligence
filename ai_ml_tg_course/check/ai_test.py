@@ -1,27 +1,12 @@
-# def NewOrginary():
-#     print('I live in Nanded \n', 'Development needed here')
+c = 0
+try:
+    a = int(input('Enter any number : '))
+    b = int(input('Enter any number : '))
+    c = a / b
+except (ZeroDivisionError, ValueError) as msg:
+    print('Exception Occure :', msg)
+finally:
+    print('Finally Block : Cleanup Code')
 
-# NewOrginary()
-# output - 
-# I live in Nanded
-# Development needed here
-
-# use existing function
-# below function already avaible in python or code here i am commenting to understand
-
-def makemepretty(func): # makemepretty is function and we define ordanary function named 'func'
-    def innter_func():
-        print('Now I am pretty')
-        func()
-    return innter_func()
-
-
-@makemepretty
-def NewOrginary():
-    print('I live in Nanded \n', 'Development needed here')
-
-
-# Now I am pretty
-#I live in Nanded 
-# Development needed here
-#
+print('Value of c :', c)
+print('Thank you ')
