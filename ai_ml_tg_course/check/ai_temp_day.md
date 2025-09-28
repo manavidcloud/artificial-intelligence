@@ -1,5 +1,3 @@
-# Day 4 - AI - Regular expression 
-Here is the content from your "image.jpg" (with some slight polishing for clarity):
 
 ***
 
@@ -176,7 +174,7 @@ This code uses the most common pre-defined character classes (`\s`, `\S`, `\d`) 
 
 - Regular expression have its site, if you add the details it will add the and give you the patttern 
 
-Here’s a polished, formatted version of the content about quantifiers in regular expressions from your image:
+
 
 ***
 
@@ -339,7 +337,6 @@ This code checks whether the pattern exists **at the beginning** of `str1`. If t
 
 ***
 
-Here’s a clear and polished version of your image’s explanation and code examples for the `fullmatch()`, `search()`, and `findall()` functions in Python’s `re` module:
 
 ***
 
@@ -442,7 +439,6 @@ print(s)
 Here, all lowercase letters are replaced by `#`.
 
 
-Here’s a polished and corrected version of your image’s code for demonstrating the use of the `sub()` function from Python’s `re` module. (There is a typo in the code: `re.sum` should be `re.sub`.)
 
 ***
 
@@ -506,8 +502,6 @@ This shows both the transformed string and the count of substitutions made.
 
 ***
 
-
-Here is a clear, organized, and polished version of the content from your image, including three common regular expression use cases:
 
 ***
 
@@ -573,9 +567,7 @@ if __name__ == "__main__":
     main()
 ```
 
-another example of email address find -
 
-Here is a polished version of your code for extracting mobile numbers and email addresses from a file using regular expressions:
 
 ***
 
@@ -607,4 +599,271 @@ for e in email_address:
 - It then searches for all mobile numbers and email addresses using appropriate regular expressions, printing each one found.
 
 ***
+
+
+***
+
+### Python's Object Oriented Programming (OOP): What is a Class?
+
+1. In Python, everything is an object. To create an object, a model or blueprint (which is a class) is required.
+2. A class is used to represent properties (attributes) and actions (behavior) of objects. like lst.append(40) 
+# ex: we have laptop and we can - chatgpt at example here
+3. Properties are represented by variables.
+4. Actions are represented by methods.
+5. Therefore, a class contains both variables and methods.
+
+ex:
+- Earlier we were preaparing food at home
+- now we are going out and getting ready to eat food
+- earlier we weare accempbling laptop at our home, now we are getting ready assemble laptop in the market
+
+- terminology
+- class() :
+    - in front of you table, chair or mobile 
+    - chair and table is belongs to furniture class and mobile is electronic class
+    - so furniture class have object like chair and table, same applicalbe to mobile
+***
+
+### How to Define a Class
+
+A class is defined using the `class` keyword.
+- Every object is belongs to some class 
+**Syntax:**
+```python
+class ClassName:
+    '''Documentation string'''
+    # Variables: instance variables, static variables, local variables
+    # Methods: instance methods, static methods, class methods
+```
+- The documentation string describes the class. It is optional but recommended for clarity.
+
+list.__doc__
+str.__doc__
+tuple.__doc__
+**Accessing the documentation string:**
+```python
+print(ClassName.__doc__)
+help(ClassName)
+```
+Use either to view a class’s docstring.
+
+
+_1st = [10,20,30]
+print(type(_1st))
+
+Output:
+<class 'list'>
+***
+
+
+
+***
+
+### Types of Variables in Python Classes
+
+Within a Python class, data is represented using variables. There are three types of class-level variables:
+
+1. **Instance Variables:**  
+   Object-level variables unique to each instance.
+2. **Static Variables:**  
+   Class-level variables shared by all instances of the class.
+3. **Local Variables:**  
+   Method-level variables used within functions and not accessible outside.
+
+***
+
+### Types of Methods in Python Classes
+- we can create our own class depends on the types.
+
+Operations in Python classes are represented by methods. There are three types of allowed methods:
+
+1. **Instance Methods:**  
+   Operate on individual object instances.
+2. **Class Methods:**  
+   Operate on the class as a whole; use the `@classmethod` decorator.
+3. **Static Methods:**  
+   Independent of class or instance; use the `@staticmethod` decorator.
+
+***
+
+Here’s a polished summary of your image that covers what objects and reference variables are in Python classes, plus how `self` works:
+
+***
+
+### What is an Object?
+ex: steave job have one idea like for apple mobile which is in his mind, now he given the mobile or blueprint to users, here mobile is object.
+
+- The physical existence of a class is called an object.
+- Any number of objects can be created from a class.
+
+**Syntax to create an object:**
+```python
+reference_variable = ClassName()
+# Example
+s = Student()
+```
+
+***
+
+### What is a Reference Variable?
+- in abouve example if reference variable. 
+- A reference variable is used to refer to an object.
+- Through a reference variable, the properties and methods of the object can be accessed properties and methods of object.
+
+***
+
+### The `self` Variable
+
+- `self` is the *default variable* in instance methods and constructors, always pointing to the current object (like `this` in Java).
+- **self** allows access to instance variables and instance methods of the object.
+
+**Notes:**
+1. `self` must be the first parameter inside the constructor (`def __init__(self)`). # initiate the class - like you are registering your self first in the collecge for admission, it is also called contructore object, this can't change,
+2. `self` must be the first parameter inside any instance method.
+def show(self)
+
+
+
+***
+
+### Constructor Concept in Python
+
+1. A constructor is a special method in Python.
+2. The constructor's name must be `__init__(self)`.
+3. It is executed automatically when an object is created.
+4. Its main purpose is to declare and initialize instance variables.
+5. Each object's constructor will only be executed once upon creation.
+6. The constructor must take at least one argument (typically `self`).
+7. If you don’t define a constructor, Python supplies a default one.
+
+**Example constructor implementation:**
+```python
+def __init__(self, name, rollno, marks):
+    self.name = name
+    self.marks = marks
+    self.rollno = rollno
+```
+Here is a concise and polished summary of your image, explaining instance and static variables in Python classes:
+
+***
+
+### Types of Variables in Python Classes
+
+Python classes can represent data using three types of variables:
+1. **Instance Variable (Object Level Variable):**
+   - Value varies between objects.
+   - Each object gets its own separate copy.
+   - Can be accessed inside the class through `self`, and outside the class via object reference.
+
+
+
+class Employee: #class <nameofyourclass>
+    '''This is example of class object as Employee Class ....'''
+    def __init__(self, id,nm,sal): #default constructor also called magical and self is variable - we also can mention s or a or n, this is special variable | after , what we mention this are argument
+        self.empID = id # it creating the value in object self
+        self.name = nm
+        self.salary = sal
+    def show_empinfo(self): # this can be anything and its manadaory be there - self or what you define in init
+        print('Employee ID', self.empID)
+        print('Employee Name', self.name)
+        print('Salary', self.salary)
+    def get_pf_da_info(self):
+        print('PF', self.salary * .10) # here we are printing the PF but using the existing defined class which we did above
+        print('DA', self.salary * .15)
+        
+Employee.__doc__
+
+## Now I am going tocreate an object 'emp' of employee class
+emp1 = Employee(101, 'Navid', 50000) # here it first call to class contractor and create object in memroy ex- id-9184 and later it gives referecne to "self" refercen of current object, with this we also pass the some values which refer to id,nm,sal
+print(id(emp1))
+print(type(emp1))
+
+emp2 = Employee(201, 'Ali', 90000)
+emp1.show_empinfo() # here even function is blank it will call to "self" refrecne which is self in our case
+emp2.show_empinfo()
+
+
+# here it create two object ex - 1001 for emp1 and 1002 for emp2, when i call from emp1 then self to details of emp1 one, same applicalbe to emp2        
+# train example
+# two passenger comes A and B on railway station wanted to book the ticket
+# now A come on windows so "ticket counter employee (in our case self)" will book the ticket
+# now B come on windows so "ticket counter employee (in our case self)" will book the ticket
+# so A and B get the ticket with the help of "Ticket counter employee"
+
+
+
+2. **Static Variable (Class Level Variable):**
+   - Value is shared by all objects of the class (does not change per object).
+   - Declared inside the class but outside of any methods.
+   - Only one copy exists for the class, shared by all objects.
+   - Accessible using the class name (recommended) or via object reference.
+
+class Bank:
+    ifsc_code = 98212  # Static variable (class level variable)
+
+    def __init__(self, an, nm, bal):
+        self.accno = an      # Instance variable (object level variable)
+        self.name = nm
+        self.balance = bal
+
+    def show_acc_info(self):
+        print('Account No:', self.accno)
+        print('Name of account holder:', self.name)
+        print('Balance in the account:', self.balance)  # corrected from self.bal to self.balance
+        print('IFSC of your account:', self.ifsc_code) # ???
+# Creating objects of Bank class
+ac1 = Bank(1001, 'navid', 48592)
+ac2 = Bank(1024, 'bob', 48291)
+ac3 = Bank(1234, 'yogesh', 1482)
+
+# Calling the method to display account information
+ac1.show_acc_info()
+ac2.show_acc_info()
+ac3.show_acc_info()
+
+
+
+
+Bank.ifsc_code = 2931 # updated ifsc code, here we are chaing the ifsc_code from bank so it will update for all 
+ac1.show_acc_info()
+ac2.show_acc_info()
+ac3.show_acc_info()
+
+# chat gpt share the output here
+
+
+ac1.ifsc_code = 200
+ac1.show_acc_info()
+# chatgpt share the output here
+### Explanation:
+# - `ifsc_code` is a class-level static variable shared by all bank accounts.
+# - `accno`, `name`, and `balance` are instance variables unique to each account.
+# - The method `show_acc_info()` prints the details of each bank account.
+
+# This example demonstrates how static variables and instance variables coexist and are used inside a Python class.
+
+# If needed, I can provide an extended example showing access to the static variable and how it differs from instance variables!
+
+
+
+### Explanation:
+# - `ifsc_code` is a class-level static variable shared by all bank accounts.
+# - `accno`, `name`, and `balance` are instance variables unique to each account.
+# - The method `show_acc_info()` prints the details of each bank account.
+
+# This example demonstrates how static variables and instance variables coexist and are used inside a Python class.
+
+# If needed, I can provide an extended example showing access to the static variable and how it differs from instance variables!
+
+
+
+3. **Local Variable (Method Level Variable):**
+   - Declared inside methods and only accessible within that method.
+
+# class and object example:
+class Employee: #class <nameofyourclass>
+
+
+
+
 
