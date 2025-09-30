@@ -41,7 +41,7 @@ Think of an **API** as a **restaurant waiter**:
 - Example:  
   ```bash
   curl https://www.joyair.com
-````
+``
 
 * These details are shared with an **LLM (Large Language Model)** to make decisions.
 * Based on the decision, the tool can make another API call (e.g., to **book the flight**).
@@ -193,6 +193,5 @@ Example:
 
 ---
 
-```
 
 ---
