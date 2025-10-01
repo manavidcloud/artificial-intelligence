@@ -192,6 +192,62 @@ Example:
 * Defines how **context and results** are shared back and forth.
 
 ---
-
+# Real-World Use Cases
 
 ---
+
+## Scenario 1: Troubleshooting
+
+![Troubleshooting:Button Missing on UI](image-3.png)
+
+We recently noticed that a **button was missing on the UI**.  
+Task: *Help me identify when and how this change happened, and share a plan to revert it.*
+
+How the AI Agent helps:
+- Interacts with **Git history**  
+- Reads both **frontend and backend code**  
+- Identifies the exact **commit or change** that caused the issue  
+- Suggests a plan to **revert or fix the change**  
+
+---
+
+## Scenario 2: Backend Development
+
+![Backend development](image-4.png)
+
+We can use **AI agents + MCPs** to build backend applications.
+
+Example:
+- While developing APIs, the agent needs access to a **MongoDB database**.  
+- During development, the agent can:  
+  - Test the APIs directly  
+  - Verify that data is correctly stored in **MongoDB**  
+  - Ensure the backend is working as expected  
+
+This enables **faster and automated backend development** with continuous testing.  
+
+---
+
+## Scenario 3: Data Engineering
+
+![Data engineering: Find missing invoice](image-5.png)
+
+We had **three data sources**:  
+- **Stripe** (payment system)  
+- **Google BigQuery** (data infrastructure)  
+- **Metabase** (visualization platform)  
+
+### Issue
+- A particular **Stripe invoice record** was missing.  
+- We couldn’t identify which **user** it belonged to.  
+
+### Solution
+- Tasked an **AI agent** with access to these 3 data sources (via **MCP servers**).  
+- The agent performed a **5–10 min troubleshooting journey**.  
+- It came back with:  
+  - The **reason** for the missing invoice  
+  - The **transaction ID**  
+  - Further **details of the affected record**  
+
+![Missing invoice AI result](image-6.png)
+

@@ -1,0 +1,8 @@
+{
+    "mcpServers": {
+    "flight-sim": {
+      "command": "/bin/bash",
+      "args": ["/root/flight-sim-mcp/flight-sim-mcp.sh"]
+    }
+  }
+}

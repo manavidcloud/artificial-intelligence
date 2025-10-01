@@ -1,0 +1,33 @@
+[project]
+name = "flight-sim-mcp"
+version = "0.1.0"
+description = "Enhanced Flight Simulation MCP Server"
+authors = [{ name = "Flight Sim MCP Team" }]
+dependencies = [
+    "fastmcp>=2.0.0",
+    "pydantic>=2.7.0",
+    "python-dateutil>=2.9.0",
+    "python-dotenv>=1.0.0",
+    "asyncio>=3.4.3",
+]
+requires-python = ">=3.10"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.2.0",
+    "pytest-asyncio>=0.23.0",
+    "ruff>=0.4.0",
+]
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+asyncio_mode = "auto"
