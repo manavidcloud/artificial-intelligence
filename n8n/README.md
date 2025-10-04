@@ -125,4 +125,46 @@ Input  ===>  Action(s)  ===>  Output
 ---
 
 # Module 2: n8n as an Automation tool
+What is n8n?
+
+N8N is an open-source, no-code tool that lets you connect apps and services to automate workflows and integrate AI-driven tasks.
+
+We can start from free and it can also be hosted locally or on cloud
+
+Offcial website of n8n: https://n8n.io/
+
+n8n Foundations
+
+N8N is an open-source, no-code tool that lets you connect apps and services to automate workflows and integrate AI-driven tasks.
+
+We can start from free and it can also be hosted locally or on cloud
+
+It has more than 500+ integrations with common applications and AI (Open AI or any other AI)
+
+Since this is a no-code tool, we can easily use and master it to build our automation and agents.
+
+It's free to start, beginner-friendly, and packed with integrations. No coding required—just drag, drop, and connect.
+
+There's a huge N8N community with templates and tutorials to guide
+
+n8n Sign-up Process
+n8n UI Walkthrough
+n8n Workflow
+n8n first Automation
+
+How to run n8n:
+1. Directly on n9n (Free trial 14 days) + Montly pricing
+ex: 
+Local MS excel installation and MS excel online (google sheet ex: on google do like sheets.new)
+
+2. Local
+3. Self hosted on a server.
+
+
+
+Create account in n8n:
+1. Open browser in incognito mode
+2. select the basic on which comes with 14 days trial no creadiet card or any payment required here.
+3. Fill the basic information and signup
+4. workspace will start and click on start automating 
 
