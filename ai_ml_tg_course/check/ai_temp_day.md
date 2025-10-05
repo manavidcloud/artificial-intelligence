@@ -190,7 +190,19 @@ But as we are using the parent class, it will also include `age`, `name`, and `l
 
 In this type of inheritance, we have **one base/parent class** and **one derived/child class**.
 
-> * required mermaid diagram
+classDiagram
+    Parent <|-- Child
+    class Parent {
+        <<Base Class>>
+    }
+    class Child {
+        <<Derived Class>>
+    }
+
+classDiagram
+    Parent <|-- Child
+    class Parent
+    class Child
 
 ---
 
@@ -198,7 +210,25 @@ In this type of inheritance, we have **one base/parent class** and **one derived
 
 In this type of inheritance, we have **more than one base class** and **only one derived class**.
 
-> * required mermaid diagram
+classDiagram
+    Base1 <|-- Derived
+    Base2 <|-- Derived
+
+    class Base1 {
+        <<Base Class>>
+    }
+    class Base2 {
+        <<Base Class>>
+    }
+    class Derived {
+        <<Derived Class>>
+    }
+
+
+classDiagram
+    BaseClass1 <|-- DerivedClass
+    BaseClass2 <|-- DerivedClass
+
 
 ---
 
@@ -478,3 +508,195 @@ This shows how `super()` can be used to chain method calls in multiple inheritan
 traversing the **Method Resolution Order (MRO)**.
 
 ---
+
+# Types of data used for I/O:
+- Text: '12345' as a sequence of unicode chars
+- Binary: 12345 as a sequence of bytes of its binary equivalent
+
+Hence there are 2 file types to deal with
+- Text files – All program files are text files
+- Binary files – Images, music, video, exe files
+
+# How File i/o
+
+
+
+# create and Writing to a file 
+```python
+# case 1 - if the file is not present
+f = open('sample.txt', 'w') # this will create a file
+f.write('Hello world') # this will add the details in file
+f.close() # this file is close the file
+
+# since file is closed hence this will not work
+f.write('hello')
+```
+---
+
+# this will overwrite the data in the file
+# write multiline strings
+```python
+f = open('sample.txt', 'w')
+f.write('hello world')
+f.write('\nhow are you?')
+f.close()
+```
+---
+# append text into existing file
+```python
+f = open('sample.txt', 'a')
+f.write('\nHi, Technical Guftgu')
+f.write('\nhow are you?')
+f.close()
+```
+---
+
+# write lines
+L = ['hello\n', 'hi\n', 'how are you\n', 'I am fine']
+
+f = open('/content/temp/sample.txt', 'w')
+f.writelines(L)
+f.close() # this will close the file from pvm. 
+
+# if we have list then we will use writeline and if we have string we will use write function
+
+
+### Read from file
+f = open('sample.txt', 'r')
+data = f.read()
+print(data)
+f.close()
+
+
+# readline() read a single at a time.
+
+f = open('sample.txt', 'r')
+print(f.readline())
+print(f.readline())
+print(f.readline())
+print(f.readline())
+
+# readlines() read a all the lines.
+# readlines()
+f = open('sample.txt', 'r')  # 'r' read mode
+for line in f.readlines():
+    print(line)
+print('----------------------')
+
+
+- **Serialization** is the process of converting Python data types to JSON format.
+- **Deserialization** is the process of converting JSON to Python data types.
+
+The image also answers "What is JSON?" by showing a JSON structure example:
+
+```json
+{
+  "results": [
+    {
+      "__metadata": {
+        "type": "EmployeeDetails;Employee"
+      },
+      "UserID": "E12012",
+      "RoleCode": "35"
+    }
+  ]
+}
+```
+
+without json + dictironay
+
+
+
+
+with json + dictory to fix the issue - this only read the file
+import json
+
+product_info = {101: 'Apple', 102: 'Orange', 103: 'Kiwi'}
+
+with open('ProductList.json', 'w') as f: # with - this will open and close the file once the block completed. 
+    json.dump(product_info, f)
+
+Output:
+
+root
+  apple
+  orangle
+  kiwi
+
+Using Context Manager (With)
+- It's a good idea to close a file after usage as it will free up the resources.
+- If we don't close it, garbage collector would close it.
+- with keyword closes the file as soon as the usage is over
+
+
+# writing in the file
+import json
+with_open('ProductionList.json, 'r') as f:
+P_dict = json.load(f)
+print(P_dict)
+print(type(P_dict))
+
+
+P_dict['102']
+
+#output
+
+
+ex:  i have to buy a furtuniture and i have space to take that furniture as well. however from the road its coming it don't have much space. so furthrniture is going to sealization and deserialization at you home
+
+Json only helping until list, dic string but is going to fail on your class and object
+- user defined class where json going to fail to bind
+-
+
+## examples 
+Json -> pickle -> jlib
+
+1. this program is going to fail
+class Person:
+    def __init__(self):
+        self.age = 0
+        self.name = ''
+        self.location = ''
+
+    def get_person_info(self):
+        self.age = int(input('Age : '))
+        self.name = input('Name : ')
+        self.location = input('Location : ')
+
+    def show_person_info(self):
+        print(f'\nAge       : {self.age}')
+        print(f'Name      : {self.name}')
+        print(f'Location  : {self.location}')
+
+P = Person()
+P.get_person_info()
+P.show_person_info()
+
+
+import json
+
+
+2. pickling
+
+The image provides definitions for pickling in Python:
+
+- **Pickling** is the process whereby a Python object hierarchy is converted into a byte stream.
+- **Unpickling** is the inverse operation, where a byte stream (from a binary file or bytes-like object) is converted back into an object hierarchy.[1]
+
+
+
+import pickle
+with open(person.pkl, 'wb') as f:
+    pickle.dump(P.f)
+
+
+import pickle
+with open(person.pkl, 'rb') as f:
+    D = pickle.load(f)
+
+D.show_person_info()
+
+print(D)
+dir(D)
+
+
