@@ -1,702 +1,220 @@
+# Day 7 - Oct 11th 2025 - 
+## 1. Joblib
 
-# Day 6 - AI/ML - Oct 5, 2025 - Inheritance 
+C:\Users\manav>pip install joblib
+Collecting joblib
+  Downloading joblib-1.5.2-py3-none-any.whl.metadata (5.6 kB)
+Downloading joblib-1.5.2-py3-none-any.whl (308 kB)
+Installing collected packages: joblib
+Successfully installed joblib-1.5.2
 
-## Python Inheritance
+from sklearn.datasets import make_regression
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error
 
-Inheritance enables us to define a class that takes all the functionality from a parent class and allows us to add more.  
-In this class, you will learn to use inheritance in Python.
+# Create dataset
+X, y = make_regression(n_samples=100, n_features=1, noise=10, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-**Inheritance in Python**  
-Inheritance is a powerful feature in object-oriented programming.  
+# Train model
+model = LinearRegression()
+model.fit(X_train, y_train)
 
-It refers to defining a new class with little or no modification to an existing class.  
-The new class is called **derived (or child)** class and the one from which it inherits is called the **base (or parent)** class.
+# Evaluate
+preds = model.predict(X_test)
+print("MSE:", mean_squared_error(y_test, preds))
+
+
+
+# Task 2: Serialize Model with Joblib
+from joblib import dump
+
+# Save model to file
+dump(model, "linear_model.joblib")
+print("Model saved successfully!")
 
 ---
 
-## Python Inheritance Syntax
-
-```python
-class BaseClass:
-    # Body of base class
-
-class DerivedClass(BaseClass):
-    # Body of derived class
-````
-
-* Derived class inherits features from the base class where new features can be added to it.
-* This results in re-usability of code.
-
----
-
-## Example of Inheritance in Python
-
-To demonstrate the use of inheritance, let us take an example.
-
-```python
-class Person:
-    def __init__(self):
-        self.age = 0
-        self.name = ''
-        self.location = ''
-
-    def get_person_info(self):
-        self.age = int(input('Age : '))
-        self.name = input('Name : ')
-        self.location = input('Location : ')
-
-    def show_person_info(self):
-        print('Name     :', self.name)
-        print('Age      :', self.age)
-        print('Location :', self.location)
-
-class Student(Person):
-    def __init__(self):
-        super().__init__()
-        self.rollno = 0
-        self.marks = 0
-
-    def get_student_info(self):
-        self.rollno = int(input('Roll no : '))
-        self.marks = int(input('Marks : '))
-
-    def show_student_info(self):
-        print('Roll no  :', self.rollno)
-        print('Marks    :', self.marks)
+## 2. Numpy
+## Install numppy
 ```
-
----
-
-### Parent class block
-
-```python
-class Person:
-    def __init__(self):
-        self.age = 0
-        self.name = ''
-        self.location = ''
-
-    def get_person_info(self):  # this will get info from user 
-        self.age = int(input('Age : '))
-        self.name = input('Name : ')
-        self.location = input('Location : ')
-
-    def show_person_info(self):  # what entered using get_person_info it will display 
-        print('Name     :', self.name)
-        print('Age      :', self.age)
-        print('Location :', self.location)
-        
-
-P = Person()
-P.get_person_info()
-P.show_person_info()
+C:\Users\manav>pip install numpy
+Collecting numpy
+  Downloading numpy-2.3.3-cp313-cp313-win_amd64.whl.metadata (60 kB)
+Downloading numpy-2.3.3-cp313-cp313-win_amd64.whl (12.8 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 12.8/12.8 MB 11.3 MB/s  0:00:01
+Installing collected packages: numpy
+Successfully installed numpy-2.3.3
 ```
+## Find the correct path of your correct python interperter if vscode
+
+python -m pip show numpy # To find install path
+open vscode and Press Ctrl + Shift + P
+Open VS Code Command Palette
+
+Press Ctrl + Shift + P (or Cmd + Shift + P on Mac).
+
+2. Select Interpreter
+
+Type and choose “Python: Select Interpreter”.
+- you will get two option, recommanded or global
+- select the global
+- check the program again your program must rexognise the numpy in the py.
+
+
+***
+
+### What is numpy?
+
+NumPy is the fundamental package for scientific computing in Python. It is a Python library that provides a multidimensional array object, various derived objects (such as masked arrays and matrices), and an assortment of routines for fast operations on arrays, including mathematical, logical, shape manipulation, sorting, selecting, I/O, discrete Fourier transforms, basic linear algebra, basic statistical operations, random simulation, and much more.
+
+At the core of the NumPy package is the ndarray object. This encapsulates n-dimensional arrays of homogeneous data types.
+
+***
+
+### NumPy Arrays vs Python Sequences
+
+- NumPy arrays have a fixed size at creation, unlike Python lists (which can grow dynamically). Changing the size of an ndarray will create a new array and delete the original.
+- The elements in a NumPy array are all required to be of the same data type, and thus will be the same size in memory.
+- NumPy arrays facilitate advanced mathematical and other types of operations on large numbers of data. Typically, such operations are executed more efficiently and with less code than is possible using Python's built-in sequences.
+- A growing plethora of scientific and mathematical Python-based packages are using NumPy arrays; though these typically support Python-sequence input, they convert such input to NumPy arrays prior to processing, and they often output NumPy arrays.
+
+Here are the notes from your screenshot, formatted in Markdown:
+
+***
+
+### Reference
+
+1. NumPy Mathematical Functions - [https://numpy.org/doc/stable/reference/routines.math.html](https://numpy.org/doc/stable/reference/routines.math.html)
+2. NumPy Universal Functions - [https://numpy.org/doc/stable/reference/ufuncs.html](https://numpy.org/doc/stable/reference/ufuncs.html)
 
 ---
 
-### Student program (without inheritance)
+### [A] Creating Numpy Arrays
+import numpy as np
+a = np.array([1,2,3,4,5])
+print(a)
+print(type(a))
 
-```python
-class Student:
-    def __init__(self):
-        self.age = 0
-        self.name = ''
-        self.location = ''
-        self.rollno = 0
-        self.marks = 0
-
-    def get_person_info(self):
-        self.age = int(input('Age : '))
-        self.name = input('Name : '))
-        self.location = input('Location : '))
-        self.rollno = int(input('Roll no : '))
-        self.marks = int(input('Marks : '))  # Typo corrected
-
-    def show_person_info(self):
-        print(f'\nAge      : {self.age}')
-        print(f'Name     : {self.name}')
-        print(f'Location : {self.location}')
-        print(f'Roll No  : {self.rollno}')
-        print(f'Marks    : {self.marks}')
-        
-        
-S = Student()
-S.get_person_info()
-S.show_person_info()
+### Creating 2D and 3D array - Check the school Matrix maths
 ```
-
----
-
-## Inheritance program with parent class
-
-```python
-class Person:
-    def __init__(self):
-        self.age = 0
-        self.name = ''
-        self.location = ''
-
-    def get_person_info(self):
-        self.age = int(input('Age : '))
-        self.name = input('Name : ')
-        self.location = input('Location : ')
-
-    def show_person_info(self):
-        print(f'\nAge      : {self.age}')
-        print(f'Name     : {self.name}')
-        print(f'Location : {self.location}')
-
-
-class Student(Person):
-    def __init__(self):
-        super().__init__()
-        self.rollno = 0
-        self.marks = 0
-
-    def get_student_info(self):
-        self.rollno = int(input('Roll no : '))
-        self.marks = int(input('Marks : '))
-
-    def show_student_info(self):
-        print(f'Roll no  : {self.rollno}')
-        print(f'Marks    : {self.marks}')
-
-
-# Usage
-s = Student()
-s.get_person_info()
-s.get_student_info()
-s.show_person_info()
-s.show_student_info()
+1D: ([1,2,3])
+2D: ([1,2,3], [3,5,6])
+3D: ([1,2,3], [3,5,6], [1,7,0])
 ```
+b = np.arrary([[1,2,3],[4,5,6]])
+print(b)
 
-**Explanation:**
-`s = Student()` has its own information like `rollno` and `marks`.
-But as we are using the parent class, it will also include `age`, `name`, and `location` from the parent.
+c = np.arrary([[1,2],[4,5], [6,7], [8,9]])
+print(c)
 
----
+#dtype -
+np.array([1,2,3],dtype=float)
 
-## Types of Inheritance in Python
+# np.arrayrange (arange)
+d = np.arange(1,100,-2)
+print(d)
 
-1. Single Inheritance
-2. Multiple Inheritance
-3. Multi-Level Inheritance
-4. Hierarchical Inheritance
-5. Hybrid Inheritance
 
----
+# Array with shape
+e = np.arange(16).reshape(4,4) # to gives the shape in 4 row and 4 coloumn
+print(e)
+##
+f = np.arange(100).reshape(2,10,5) # 2 row 10 coloumn and 5??
+print(f)
 
-### 1. Single Inheritance
-
-In this type of inheritance, we have **one base/parent class** and **one derived/child class**.
+## 1. Random floats between 0 and 1
+arr = np.random.rand(3,4) #  (rows,coloumn)random is function and rand is inside the random . rand by default start from 0-1
+print(arr)
 
-classDiagram
-    Parent <|-- Child
-    class Parent {
-        <<Base Class>>
-    }
-    class Child {
-        <<Derived Class>>
-    }
+## 1. Random integers
+arr = np.random.randinit(11,20,size=(4,4)) # this first create 4*4 block then take randinit from 11 - 20
 
-classDiagram
-    Parent <|-- Child
-    class Parent
-    class Child
 
----
 
-### 2. Multiple Inheritance
+arr = np.arange(1,11),reshape(3,3) # it will work 3*3 = 9 and in arange 1-11 will take 1 to 10 as its in range always be default -1.
 
-In this type of inheritance, we have **more than one base class** and **only one derived class**.
+arr = np.arange(1,11),reshape(5,2) # it will work
 
-classDiagram
-    Base1 <|-- Derived
-    Base2 <|-- Derived
+arr = np.arange(1,10),reshape(3,3) # it will work not work due to range 
 
-    class Base1 {
-        <<Base Class>>
-    }
-    class Base2 {
-        <<Base Class>>
-    }
-    class Derived {
-        <<Derived Class>>
-    }
-
+# Random numbers between any two values (e.g., 10 to 50)
+arr = np.random.uniform(10, 50, size=(3, 4)) # in numpy - np, we have random function in that we are using uniform is this method or function?
+print(arr) # Generates random floats between 10 and 50.
 
-classDiagram
-    BaseClass1 <|-- DerivedClass
-    BaseClass2 <|-- DerivedClass
-
-
----
-
-### Example of Multiple Inheritance in Python
-
-```python
-class Customer:
-    cust_id
-    name
-    location
+# Output
 
-class Product:
-    product_id
-    name
-    cost
-
-class Order(Customer, Product):
-    order_id
-    quantity
-    total_cost
-```
-
----
-
-```python
-# Parent Class 1
-class Customer:
-    def __init__(self, name, email):
-        self.name = name
-        self.email = email
-
-    def customer_details(self):
-        print(f"Customer Name: {self.name}")
-        print(f"Email: {self.email}")
-
-# Parent Class 2
-class Product:
-    def __init__(self, product_name, price):
-        self.product_name = product_name
-        self.price = price
-
-    def product_details(self):
-        print(f"Product: {self.product_name}")
-        print(f"Price: ₹{self.price}")
-
-# Derived class (child class)        
-class Order(Customer, Product):
-    def __init__(self, name, email, product_name, price, quantity):
-        # Initialize both parent classes
-        Customer.__init__(self, name, email)
-        Product.__init__(self, product_name, price)
-        self.quantity = quantity
-
-    def order_summary(self):
-        print("\n--- ORDER SUMMARY ---")
-        self.customer_details()
-        self.product_details()
-        print(f"Quantity: {self.quantity}")
-        print(f"Total Amount: ₹{self.price * self.quantity}")
-
-# Create an order
-order1 = Order("Navid", "md.navid@example.com", "Playstation", 90000, 4)
-order1.order_summary()
-```
-
----
-
-### Notes
-
-* `__init__()` → Constructor to initialize the class.
-* `self` → Refers to the current instance of the class.
-
----
-
-## Super keyword in class and object Python
-
-```python
-class Person:
-    def __init__(self, name, age):
-        self.name = name
-        self.age = age
-
-    def show_details(self):
-        print(f"Name: {self.name}")
-        print(f"Age: {self.age}")
-
-# Child class inheriting from Person
-class Employee(Person):
-    def __init__(self, name, age, emp_id, salary):
-        # use super() to call parent constructor
-        # Person.__init__(self, name, age) # either pass using class name or use super keyword
-        super().__init__(name, age)
-        self.emp_id = emp_id
-        self.salary = salary
-
-    def show_details(self):
-        # use super() to call parent method
-        super().show_details()
-        print(f"Employee ID: {self.emp_id}")
-        print(f"Salary: ₹{self.salary}")
-
-# Create an object
-emp1 = Employee("Navid", 40, "x102", 90000)
-emp1.show_details()
-```
-
----
-
-## Super Example 2
-
-```python
-# Parent Class 1
-class Customer:
-    def __init__(self, name, email):
-        self.name = name
-        self.email = email
-
-    def customer_details(self):
-        print(f"Customer Name: {self.name}")
-        print(f"Email: {self.email}")
-
-# Parent Class 2
-class Product:
-    def __init__(self, product_name, price):
-        self.product_name = product_name
-        self.price = price
-
-    def product_details(self):
-        print(f"Product: {self.product_name}")
-        print(f"Price: ₹{self.price}")
-
-# Derived class (child class)        
-class Order(Customer, Product):
-    def __init__(self, name, email, product_name, price, quantity):
-        # Initialize both parent classes using super()
-        super().__init__(name, email)  # calls Customer's __init__ due to MRO
-        # NOTE: In multiple inheritance, `super()` only calls the next class in MRO chain
-        self.product_name = product_name
-        self.price = price
-        self.quantity = quantity
-
-    def order_summary(self):
-        print("\n--- ORDER SUMMARY ---")
-        self.customer_details()
-        self.product_details()
-        print(f"Quantity: {self.quantity}")
-        print(f"Total Amount: ₹{self.price * self.quantity}")
-
-
-# Create an order
-order1 = Order("Navid", "md.navid@example.com", "Playstation", 90000, 4)
-order1.order_summary()
-```
-
----
-
-## Method Resolution Order (MRO)
-
-**MRO Algorithm:**
-If head element of first list not present in the tail part of any other list,
-then consider that element in the result and remove that element from all the lists.
-
-Example:
-
-```python
-class A:
-    def m1(self):
-        print('Method of Class A')
-
-class B(A):
-    def m1(self):
-        print('Method of Class B')
-
-obj = B()
-obj.m1()                 # Output: Method of Class B
-print(B.mro())           # Output: [<class '__main__.B'>, <class '__main__.A'>, <class 'object'>]
-```
-
----
-
-### Example without MRO
-
-```python
-class A:
-    def m1(self):
-        print('A Class Method')
-
-    def m3(self):
-        print('A Class Method')
-
-class B(A):
-    def m1(self):
-        print('B Class Method')
-        
-    def m3(self):
-        print('B Class Method')
+# Example with np.random.seed()
 
-class C:
-    def m1(self):
-        print('C Class Method')
+import numpy as np
 
-    def m3(self):
-        print('C Class Method')
+np.random.seed(10)  # Set the random seed
 
-class X(A, B):
-    def m1(self):
-        print('X Class Method')
+arr1 = np.random.randint(1, 10, size=(3, 3))
+print(arr1)
 
-    def m2(self):
-        print('X Class Method')
-
-class Y(B, C):
-    def m1(self):
-        print('Y Class Method')
-
-    def m2(self):
-        print('Y Class Method')
-
-class P(X, Y, C):
-    def m1(self):
-        print('P Class Method')
-
-
-obj = P()
-obj.m1()
-obj.m2()  # this will call X class and override Y class
-obj.m3()  # this will call A class method
-
-print(P.mro())  # it will show the MRO 
-```
-
----
-
-### How MRO Works (Example)
-
-```
-mro(P) = P + merge(mro(X), mro(Y), mro(C), XYC)
-       = P + merge(XABO, YBCO, CO, XYC)
-       = P + X + merge(ABO, YBCO, CO, YC)
-       = P + X + A + merge(BO, YBCO, CO, YC)
-       = P + X + A + Y + merge(BO, BCO, CO, C)
-       = P + X + A + Y + B + merge(O, CO, CO, C)
-       = P + X + A + Y + B + C + merge(O, O, O)
-       = P + X + A + Y + B + C + O
-```
-
----
-
-### Using `super()` with MRO Example
-
-```python
-class A:
-    def m1(self):
-        print('Method of Class A')
-
-class B:
-    def m1(self):
-        print('Method of Class B')
-
-class C(A, B):
-    def m1(self):
-        super().m1()           # Calls m1 from A (first in MRO)
-        super(A, self).m1()    # Calls m1 from B (the next after A in MRO)
-
-obj = C()
-obj.m1()
-```
-
-**Output:**
-
-```
-Method of Class A
-Method of Class B
-```
-
-This shows how `super()` can be used to chain method calls in multiple inheritance,
-traversing the **Method Resolution Order (MRO)**.
-
----
+# Output will always be the same, for example:
 
-# Types of data used for I/O:
-- Text: '12345' as a sequence of unicode chars
-- Binary: 12345 as a sequence of bytes of its binary equivalent
 
-Hence there are 2 file types to deal with
-- Text files – All program files are text files
-- Binary files – Images, music, video, exe files
+arr1 = np.random.randint(1, 10, size=(3, 3))
+print(arr1)
 
-# How File i/o
 
 
+import numpy as np
 
-# create and Writing to a file 
-```python
-# case 1 - if the file is not present
-f = open('sample.txt', 'w') # this will create a file
-f.write('Hello world') # this will add the details in file
-f.close() # this file is close the file
+np.random.seed(10)  # Set the random seed
+# seed is like a milk dary if you mention any number there you will get the same output
+# creamy, tonned and thin milk 
 
-# since file is closed hence this will not work
-f.write('hello')
-```
----
+arr1 = np.random.randint(1, 10, size=(3, 3))
+print(arr1)
 
-# this will overwrite the data in the file
-# write multiline strings
-```python
-f = open('sample.txt', 'w')
-f.write('hello world')
-f.write('\nhow are you?')
-f.close()
-```
----
-# append text into existing file
-```python
-f = open('sample.txt', 'a')
-f.write('\nHi, Technical Guftgu')
-f.write('\nhow are you?')
-f.close()
-```
----
+# 1, 10 - it will take output between 1 to 10
+# will create 3 row and 3 coloum
+# np is numpy
+# random - select any random number between 1,10 which we define
+# see(x) - this is just a referece where get the same value for x if change to y then it will be different, without seed it will change the value. output will be always be the same 
 
-# write lines
-L = ['hello\n', 'hi\n', 'how are you\n', 'I am fine']
+np.random.seed(11)  # Set the random seed
+# seed is like a milk dary if you mention any number there you will get the same output
+# creamy, tonned and thin milk 
 
-f = open('/content/temp/sample.txt', 'w')
-f.writelines(L)
-f.close() # this will close the file from pvm. 
+arr1 = np.random.randint(1, 10, size=(3, 3))
+print(arr1)
 
-# if we have list then we will use writeline and if we have string we will use write function
+np.random.seed(10)  # Set the random seed
+# seed is like a milk dary if you mention any number there you will get the same output
+# creamy, tonned and thin milk 
 
+arr1 = np.random.randint(1, 10, size=(3, 3))
+print(arr1)
 
-### Read from file
-f = open('sample.txt', 'r')
-data = f.read()
-print(data)
-f.close()
+# output - this will be every time change when you run it
 
 
-# readline() read a single at a time.
+# np.linspace : Linear Space between numbers or points
+import numpy as np
 
-f = open('sample.txt', 'r')
-print(f.readline())
-print(f.readline())
-print(f.readline())
-print(f.readline())
+x = np.linspace(-10, 10, 10, dtype=int)
+print(x)
 
-# readlines() read a all the lines.
-# readlines()
-f = open('sample.txt', 'r')  # 'r' read mode
-for line in f.readlines():
-    print(line)
-print('----------------------')
+np.linspace(start, stop, num, dtype=int) generates num evenly spaced samples from start to stop (inclusive) as integers.
 
-
-- **Serialization** is the process of converting Python data types to JSON format.
-- **Deserialization** is the process of converting JSON to Python data types.
-
-The image also answers "What is JSON?" by showing a JSON structure example:
-
-```json
-{
-  "results": [
-    {
-      "__metadata": {
-        "type": "EmployeeDetails;Employee"
-      },
-      "UserID": "E12012",
-      "RoleCode": "35"
-    }
-  ]
-}
-```
-
-without json + dictironay
-
-
-
-
-with json + dictory to fix the issue - this only read the file
-import json
-
-product_info = {101: 'Apple', 102: 'Orange', 103: 'Kiwi'}
-
-with open('ProductList.json', 'w') as f: # with - this will open and close the file once the block completed. 
-    json.dump(product_info, f)
+In the example above, it generates 10 evenly spaced integers between -10 and 10
 
 Output:
-
-root
-  apple
-  orangle
-  kiwi
-
-Using Context Manager (With)
-- It's a good idea to close a file after usage as it will free up the resources.
-- If we don't close it, garbage collector would close it.
-- with keyword closes the file as soon as the usage is over
+[-10  -8  -6  -4  -2   1   3   5   7  10]
 
 
-# writing in the file
-import json
-with_open('ProductionList.json, 'r') as f:
-P_dict = json.load(f)
-print(P_dict)
-print(type(P_dict))
-
-
-P_dict['102']
-
-#output
-
-
-ex:  i have to buy a furtuniture and i have space to take that furniture as well. however from the road its coming it don't have much space. so furthrniture is going to sealization and deserialization at you home
-
-Json only helping until list, dic string but is going to fail on your class and object
-- user defined class where json going to fail to bind
--
-
-## examples 
-Json -> pickle -> jlib
-
-1. this program is going to fail
-class Person:
-    def __init__(self):
-        self.age = 0
-        self.name = ''
-        self.location = ''
-
-    def get_person_info(self):
-        self.age = int(input('Age : '))
-        self.name = input('Name : ')
-        self.location = input('Location : ')
-
-    def show_person_info(self):
-        print(f'\nAge       : {self.age}')
-        print(f'Name      : {self.name}')
-        print(f'Location  : {self.location}')
-
-P = Person()
-P.get_person_info()
-P.show_person_info()
-
-
-import json
-
-
-2. pickling
-
-The image provides definitions for pickling in Python:
-
-- **Pickling** is the process whereby a Python object hierarchy is converted into a byte stream.
-- **Unpickling** is the inverse operation, where a byte stream (from a binary file or bytes-like object) is converted back into an object hierarchy.[1]
+y = np.linspace(-10, 10, 10, dtype=int)
 
 
 
-import pickle
-with open(person.pkl, 'wb') as f:
-    pickle.dump(P.f)
+### [B] Array Attributes
 
+### [C] Changing Datatype 
 
-import pickle
-with open(person.pkl, 'rb') as f:
-    D = pickle.load(f)
-
-D.show_person_info()
-
-print(D)
-dir(D)
-
-
+### [D] Array Operations
+### [E] Array Functions 
