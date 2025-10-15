@@ -1,13 +1,601 @@
 
-# AI - Day 3: Functions, Decorators, and Exception Handling
+# 🧠 AI / ML Notes – Day 1 - Python installation and basices 
+
+📅 **Date:** Sept 15
 
 ---
 
-## Nested Functions
+## 🐍 Python Setup
 
-We can declare a function inside another function. Such functions are called **nested functions**.
+### ✅ Install Python
+
+1. Install Python
+2. Open **Command Prompt**
+3. Run:
+
+   ```bash
+   pip install jupyter
+   ```
+4. Create a **shortcut key** for Jupyter Notebook
+5. Change the **Start In path** in shortcut properties
+
+💡 You can also use **Google Colab** instead of local Jupyter.
+
+---
+
+## 🧩 Program Flow
+
+**Input → Process → Output**
+
+---
+
+### 🖥️ Input
+
+Data can come from:
+
+* User Interface
+* CSV files
+* APIs
+* SQL Databases
+
+**Example:**
+
+```python
+marks = input('Enter your marks: ')
+```
+
+---
+
+## 📦 Data Structures
+
+### 🧮 List
+
+* **Insertion order preserved**
+* **Duplicates allowed**
+* **Heterogeneous objects allowed** (e.g., `[10, 'apple', 34.5]`)
+* **Mutable** – can change elements
+* **Dynamic** – can increase or decrease size
+
+**Example:**
+
+```python
+lst = [10, 20, 30, 40, 50]
+print(lst)
+# Output: [10, 20, 30, 40, 50]
+
+lst.append(1000)
+lst.pop()
+```
+
+---
+
+### 📚 Tuple
+
+* **Immutable** – cannot change after creation
+* Supports **packing** and **unpacking**
+* A single-element tuple must have a comma → `(10,)`
+
+**Example:**
+
+```python
+t1 = 10, 20, 30  # tuple packing
+x, y, z = t1     # tuple unpacking
+print(x, y, z)
+# Output: 10 20 30
+
+t4 = (10, 20, 30)
+print(t4)
+print(type(t4))
+```
+
+> A tuple with one element like `(10)` is not a tuple — it’s an integer.
+
+---
+
+### 🧮 Set
+
+* **Unordered** (no insertion order)
+* **No duplicate elements**
+* **Mutable**
+* Can perform **mathematical operations**
+
+**Example:**
+
+```python
+set1 = {10, 20, 30, 40, 50}
+print(set1)
+# Output: {40, 10, 50, 20, 30}
+```
+
+---
+
+### 📘 Dictionary
+
+* Data from APIs often comes in **JSON**, which maps to **Python dictionary**
+* **No indexing**
+* **Access values by keys**
+* **Keys must be unique**
+
+**Example:**
+
+```python
+d1 = {'Name': 'Navid', 'Age': 40}
+print(d1)
+print(d1.keys())
+print(d1.values())
+print(d1.items())
+```
+
+**Find specific values in dictionary:**
+
+```python
+for key, value in d1.items():
+    if value == 'Mango':
+        print(key, value)
+```
+
+---
+
+### 🔢 Advanced Data Structures
+
+* **NumPy** → Numerical computations
+* **Pandas** → Data manipulation and analysis
+
+---
+
+### 💡 Flask Framework
+
+We can use **Flask** to build small **web applications** for AI/ML models.
+
+---
+
+## ⚙️ Process Module
+
+**Example Calculations:**
+
+```python
+result = 10 + 20
+print(result)   # 30
+
+result = 10 / 20
+print(result)   # 0.5
+
+result = 22 / 7
+print(result)   # 3.142857...
+
+result = 22 % 7
+print(result)   # 1  (% gives remainder)
+
+result = 2 * 4
+print(result)   # 8
+
+result = 2 ** 4
+print(result)   # 16 (power operator)
+```
+
+---
+
+## 🔢 Indexing
+
+| Index Type        | Direction    | Example          |
+| ----------------- | ------------ | ---------------- |
+| Positive Indexing | Left → Right | `0, 1, 2, 3`     |
+| Negative Indexing | Right → Left | `-4, -3, -2, -1` |
+
+**Example:**
+
+```python
+lst = [10, 30, 50, 60]
+print(lst[0])   # 10
+print(lst[-3])  # 30
+```
+
+---
+
+## ✂️ Slice Operator
+
+**Syntax:**
+
+```
+list[start : stop : step]
+```
+
+**Example:**
+
+```python
+lst = [10, 20, 30, 50, 80, 35]
+sub_lst = lst[0:3]
+print(sub_lst)
+# Output: [10, 20, 30]
+```
+
+> Slice always goes up to `n-1` (stop is excluded)
+
+---
+
+## 🔁 Reverse a List
+
+```python
+lst = [10, 20, 30, 50, 60]
+rev_list = lst[::-1]
+print(rev_list)
+# Output: [60, 50, 30, 20, 10]
+```
+
+* **First:** default start of list
+* **Second:** default end of list
+* **Step (-1):** reverses order
+
+---
+
+### 🔢 More Slice Examples
+
+```python
+lst = [10, 20, 30, 50, 60]
+
+print(lst[2:5:1])   # [30, 50, 60]
+print(lst[2:5:-1])  # []
+print(lst[5:2:-1])  # [60, 50, 30]
+print(lst[5:2:1])   # []
+```
+
+---
+
+## 🧾 Dictionary Example
+
+```python
+d1 = {'empid': 10, 'name': 'Navid'}
+print(d1)
+print(d1.keys())
+print(d1.values())
+print(d1.items())
+```
+
+---
+
+## 🧮 Set Examples
+
+```python
+d1 = {}
+print(type(d1))  # <class 'dict'>
+
+s1 = {10, 20, 30}
+print(s1)
+# Output: {10, 20, 30}
+
+s2 = {10, 20, 30, 10}
+print(s2)
+# Output: {10, 20, 30}
+```
+
+### Set Operations
+
+```python
+# Union
+s1 | s2  # or s1.union(s2)
+
+# Difference
+s1 - s2
+
+# Symmetric Difference
+s1 ^ s2  # Elements in s1 or s2, but not both
+```
+
+---
+
+## 🧮 Example – Input and Print
+
+```python
+marks = input('Enter your marks: ')
+print('You scored:', marks)
+```
+
+---
+
+## 🧠 Notes Recap
+
+| Concept            | Description                         |
+| ------------------ | ----------------------------------- |
+| **List**           | Ordered, mutable, allows duplicates |
+| **Tuple**          | Ordered, immutable                  |
+| **Set**            | Unordered, unique values            |
+| **Dictionary**     | Key-value pairs                     |
+| **NumPy / Pandas** | Advanced data structures            |
+| **Flask**          | For web app deployment              |
+
+---
+
+# 🤖 AI / ML Notes – Day 2 & Day 3 - 📚 **Topic:** Functions, Decorators, and Exception Handling
+
+
+---
+
+## 🧩 What is a Function?
+
+A **function** is a block of reusable code designed to perform a specific task.
+
+> 💡 If a set of statements is required repeatedly, it’s inefficient to rewrite them.
+> Instead, define a **function** once and call it wherever needed.
+
+---
+
+### ✅ Advantages of Functions
+
+* Reduces lines of code
+* Improves readability and debugging
+* Enhances reusability
+* Easy to maintain and extend
+
+---
+
+### 🧠 Example – Reusable Function
+
+```python
+def fun():
+    print('Hello Python')
+
+fun()
+fun()
+```
+
+---
+
+## ⚙️ Types of Functions in Python
+
+1. **Built-in Functions** → predefined (e.g. `print()`, `len()`, `type()`)
+2. **User-defined Functions** → created by the programmer
+
+---
+
+### 🧮 Example – Built-in Functions
+
+```python
+id()
+type()
+print()
+input()
+eval()
+```
+
+---
+
+### 🧠 Example – User-defined Function
+
+```python
+def greet():
+    print("Hello from a user-defined function!")
+
+greet()
+```
+
+---
+
+## 📦 Function Syntax
+
+```python
+def function_name(parameters):
+    statements
+    return value
+```
+
+* `def` → keyword to define a function
+* `return` → optional; used to send data back to the caller
+
+---
+
+### Example – Function with Return Value
+
+```python
+def addition(a, b):
+    return a + b
+
+result = addition(10, 20)
+print(result)  # Output: 30
+```
+
+If no `return` is used, the function returns `None`.
+
+---
+
+### Example – Return None by Default
+
+```python
+def fun():
+    print('Hello Python')
+
+print(fun())
+# Output:
+# Hello Python
+# None
+```
+
+---
+
+## 🎯 Function Parameters
+
+**Formal Parameters** → variables defined inside the function
+**Actual Arguments** → values passed when calling the function
+
+```python
+def addition(a, b):
+    return a + b
+
+print(addition(10, 20))
+print(addition(15, 25))
+```
+
+---
+
+## 🔁 Returning Multiple Values
+
+Python allows returning **multiple values** (as a tuple).
+
+```python
+def sum_sub(a, b):
+    return a + b, a - b
+
+x, y = sum_sub(10, 20)
+print('Sum:', x)
+print('Sub:', y)
+```
+
+---
+
+## ⚙️ Types of Arguments
+
+1. **Positional Arguments**
+2. **Keyword Arguments**
+3. **Default Arguments**
+4. **Variable-Length Arguments**
+
+---
+
+### 1️⃣ Positional Arguments
+
+```python
+def sub(a, b):
+    print(a - b)
+
+sub(10, 20)
+sub(20, 10)
+```
+
+---
+
+### 2️⃣ Keyword Arguments
+
+```python
+def student_info(rollno, name, marks):
+    print('Roll No:', rollno)
+    print('Name:', name)
+    print('Marks:', marks)
+
+student_info(name='Navid', rollno=9, marks=90)
+```
+
+---
+
+### 3️⃣ Default Arguments
+
+```python
+def sum(a, b=0):
+    return a + b
+
+print(sum(10))
+print(sum(10, 20))
+```
+
+---
+
+### 4️⃣ Variable-Length Arguments
+
+#### `*args` → multiple positional arguments as tuple
+
+```python
+def student_info(*info):
+    print('Student Info:')
+    for i in info:
+        print(i)
+
+student_info(101, 'Rakesh', 400, 'Delhi')
+```
+
+#### `**kwargs` → multiple keyword arguments as dictionary
+
+```python
+def student_info(**kwargs):
+    for key, value in kwargs.items():
+        print(f'{key} : {value}')
+
+student_info(rollno=101, name='Rakesh', marks=300, city='Delhi')
+```
+
+---
+
+## 🌍 Variable Scope
+
+### 1️⃣ Global Variables
+
+```python
+a = 10
+
+def fun1():
+    print('a in fun1:', a)
+
+def fun2():
+    print('a in fun2:', a)
+
+fun1()
+fun2()
+```
+
+---
+
+### 2️⃣ Local Variables
+
+```python
+def fun1():
+    a = 10
+    print('Local a:', a)
+
+def fun2():
+    print(a)  # Error
+
+fun1()
+fun2()
+```
+
+---
+
+## 🌐 The `global` Keyword
+
+Used to:
+
+1. Declare a global variable inside a function
+2. Modify a global variable within a function
+
+---
+
+### Example – Modify Global Variable
+
+```python
+a = 10
+
+def fun1():
+    global a
+    a = 999
+    print('a in fun1:', a)
+
+fun1()
+print('a outside:', a)
+```
+
+---
+
+### Example – Access Global Variable When Local Exists
+
+```python
+a = 10
+
+def fun1():
+    a = 999
+    print('Local a:', a)
+    print('Global a:', globals()['a'])
+
+fun1()
+```
+
+---
+
+## 🧠 Nested Functions
+
+We can declare a function inside another function.
+Such functions are called **nested functions**.
+
+---
 
 ### Example 1
+
 ```python
 def outer():  # 1. Define outer function
     print('Outer Function started')  # 2. Print from outer
@@ -31,7 +619,7 @@ Inner Function execution
 
 ---
 
-### Example 2: Calling Inner Function Before Print
+### Example 2 – Calling Inner Before Print
 
 ```python
 def outer():
@@ -46,7 +634,7 @@ outer()
 
 ---
 
-### Example 3: Return Inner Function
+### Example 3 – Return Inner Function
 
 ```python
 def outer():
@@ -67,18 +655,18 @@ fun_1()          # now runs inner()
 
 ---
 
-## Function Decorators
+## 🎨 Function Decorators
 
-* A **decorator** is a function which takes another function as argument, **extends its functionality**, and returns the modified function.
+A **decorator** is a function which takes another function as argument,
+**extends its functionality**, and returns the modified function.
 
-📌 **Example analogy:**
-We have a room (ordinary function).
-A decorator is like a decorator person who enhances the room.
-The room remains, but its appearance improves.
+📌 *Analogy:*
+A decorator is like someone who decorates your room —
+the structure remains, but its appearance is enhanced.
 
 ---
 
-### Example 1: Without `@decorator`
+### Example 1 – Without `@decorator`
 
 ```python
 def ordinary():
@@ -96,7 +684,7 @@ pretty = makemepretty(ordinary)
 
 ---
 
-### Example 2: With `@decorator`
+### Example 2 – With `@decorator`
 
 ```python
 def makemepretty(func):
@@ -120,17 +708,17 @@ Development needed here
 
 ---
 
-## Exception Handling
+## ⚠️ Exception Handling
 
-In any programming language, two types of errors are possible:
+Two kinds of errors:
 
-1. **Compile-time or Syntax errors**
-2. **Runtime errors** (exceptions)
+1. **Compile-time (Syntax errors)**
+2. **Runtime errors (Exceptions)**
 
-An **exception** is:
+An **exception** is an unwanted/unexpected event
+that disturbs the normal flow of the program.
 
-* An unwanted/unexpected event that disturbs normal flow of program.
-* Example: `ZeroDivisionError`, `ValueError`, `TypeError`, `EOFError`, etc.
+Examples: `ZeroDivisionError`, `ValueError`, `TypeError`, `EOFError`, etc.
 
 ---
 
@@ -142,7 +730,7 @@ b = int(input('Enter any number : '))
 c = a / b
 ```
 
-If `b = 0`, we get:
+If `b = 0`, output:
 
 ```
 ZeroDivisionError: division by zero
@@ -194,10 +782,9 @@ print('Thank you')
 
 ---
 
-## Finally Block
+## 🧹 Finally Block
 
-* Always executes cleanup code whether exception occurs or not.
-* Example: closing files, releasing resources, etc.
+Always executes cleanup code whether exception occurs or not.
 
 ```python
 c = 0
@@ -226,10 +813,10 @@ Thank you
 
 ---
 
-## Else Block with Try-Except-Finally
+## ✅ Else Block with Try-Except-Finally
 
-* `else` runs **only if no exception occurs** in the try block.
-* `finally` runs always.
+* `else` → runs only if no exception occurs
+* `finally` → always executes
 
 ```python
 c = 0
@@ -259,10 +846,10 @@ Thank you
 
 ---
 
-## User-Defined Exception
+## 🚨 User-Defined Exception (Custom Exception)
 
 Also known as **customized/programmatic exceptions**.
-Programmers define and raise them explicitly when needed.
+Defined and raised explicitly by programmers.
 
 ```python
 class MyException(Exception):  # must inherit from Exception
@@ -288,7 +875,28 @@ Error: ('Low Temperature',)
 Thank you
 ```
 
-📌 Note: `raise` is best for customized exceptions, but not for predefined ones.
+📌 Note: `raise` is best for **customized exceptions**,
+not for predefined ones.
+
+---
+
+# 🧾 Summary
+
+| Concept                | Description                |
+| ---------------------- | -------------------------- |
+| **Function**           | Reusable block of code     |
+| **Return**             | Sends value back to caller |
+| **Args / Kwargs**      | Variable-length arguments  |
+| **Global / Local**     | Variable scope control     |
+| **Nested Function**    | Function inside another    |
+| **Decorator**          | Enhances existing function |
+| **Exception Handling** | Controls runtime errors    |
+| **Finally / Else**     | Cleanup and success blocks |
+| **Custom Exception**   | User-defined runtime error |
+
+---
+
+Would you like me to **export this as a `.ipynb` (Jupyter)** or **`.pdf` study sheet** with a clickable table of contents and highlighted sections next?
 
 ---
 
@@ -2228,7 +2836,7 @@ obj.m1()
 ```
 
 **Output:**
-
+ 
 ```
 Method of Class A
 Method of Class B
@@ -2433,3 +3041,437 @@ dir(D)
 ---
 
 
+# 🧠 Day 7 - Oct 11th  2025
+
+## 1. Joblib
+
+### Installation
+
+```bash
+pip install joblib
+```
+
+### Example
+
+```python
+from sklearn.datasets import make_regression
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error
+
+# Create dataset
+X, y = make_regression(n_samples=100, n_features=1, noise=10, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Train model
+model = LinearRegression()
+model.fit(X_train, y_train)
+
+# Evaluate
+preds = model.predict(X_test)
+print("MSE:", mean_squared_error(y_test, preds))
+```
+
+### Serialize Model with Joblib
+
+```python
+from joblib import dump
+
+# Save model to file
+dump(model, "linear_model.joblib")
+print("Model saved successfully!")
+```
+
+---
+
+## 2. NumPy
+
+### Installation
+
+```bash
+pip install numpy
+```
+
+### Configure Correct Interpreter in VS Code
+
+1. Run:
+
+   ```bash
+   python -m pip show numpy
+   ```
+
+   → Note the installation path.
+2. Open VS Code → **Ctrl + Shift + P**
+3. Search **“Python: Select Interpreter”**
+4. Choose the **Global** interpreter (not recommended one if virtual).
+5. Re-run the program to ensure NumPy is recognized.
+
+---
+
+### 🧩 What is NumPy?
+
+NumPy is the **core package for numerical computing in Python**.
+It provides:
+
+* The **ndarray object** — n-dimensional arrays of uniform data type.
+* Fast mathematical operations (vectorized).
+* Tools for linear algebra, statistics, random numbers, etc.
+
+---
+
+### 🔍 NumPy Arrays vs Python Lists
+
+| Feature   | NumPy Array             | Python List          |
+| --------- | ----------------------- | -------------------- |
+| Size      | Fixed                   | Dynamic              |
+| Data Type | Homogeneous             | Heterogeneous        |
+| Speed     | Very fast (C optimized) | Slower               |
+| Memory    | Compact                 | High memory overhead |
+
+---
+
+## [A] Creating NumPy Arrays
+
+```python
+import numpy as np
+
+# 1D Array
+a = np.array([1, 2, 3, 4, 5])
+print(a)
+print(type(a))
+```
+
+### 2D and 3D Arrays
+
+```python
+b = np.array([[1, 2, 3], [4, 5, 6]])
+c = np.array([[1, 2], [4, 5], [6, 7], [8, 9]])
+```
+
+### Specify Datatype
+
+```python
+np.array([1, 2, 3], dtype=float)
+```
+
+### Using `arange`
+
+```python
+d = np.arange(1, 100, 2)
+```
+
+### Reshape Arrays
+
+```python
+e = np.arange(16).reshape(4, 4)
+f = np.arange(100).reshape(2, 10, 5)
+```
+
+---
+
+## Random Numbers
+
+```python
+# Random floats (0–1)
+arr = np.random.rand(3, 4)
+
+# Random integers
+arr = np.random.randint(11, 20, size=(4, 4))
+
+# Random floats between two numbers
+arr = np.random.uniform(10, 50, size=(3, 4))
+```
+
+### Using Seed
+
+```python
+np.random.seed(10)
+arr1 = np.random.randint(1, 10, size=(3, 3))
+print(arr1)
+```
+
+> Seed ensures the same random numbers each run.
+
+---
+
+## Using `linspace`
+
+```python
+x = np.linspace(-10, 10, 10, dtype=int)
+print(x)
+```
+
+→ Generates **10 evenly spaced numbers** between -10 and 10.
+
+---
+
+## [B] Array Attributes
+
+```python
+import sys, numpy as np
+
+a1 = np.arange(10, dtype=np.int32)
+print('Memory usage:', sys.getsizeof(a1))
+print(a1.size)        # number of elements
+print(a1.itemsize)    # bytes per element
+print(a1.shape)       # dimensions
+```
+
+---
+
+## [C] Changing Datatype
+
+```python
+a2 = np.arange(12, dtype=float).reshape(3, 4)
+print(a2.dtype)
+a2 = a2.astype(np.int32)
+print(a2.dtype)
+```
+
+---
+
+## [D] Array Operations
+
+```python
+a1 = np.arange(12).reshape(3, 4)
+a2 = np.arange(12, 24).reshape(3, 4)
+```
+
+### Scalar Operations
+
+```python
+a1 ** 2
+a2 == 15
+```
+
+### Vector Operations
+
+```python
+x = np.array([[1, 2], [3, 4]])
+y = np.array([[5, 6], [7, 8]])
+print(np.power(x, y))
+```
+
+---
+
+## [E] Array Functions
+
+```python
+a1 = np.random.random((3, 3))
+
+np.max(a1)
+np.max(a1, axis=0)  # column-wise
+np.max(a1, axis=1)  # row-wise
+```
+
+Other Functions:
+
+```python
+np.min(a1)
+np.sum(a1)
+np.prod(a1)
+np.mean(a1)
+np.std(a1)
+np.var(a1)
+```
+
+### Dot Product
+
+```python
+a2 = np.arange(12).reshape(3, 4)
+a3 = np.arange(12, 24).reshape(4, 3)
+np.dot(a2, a3)
+```
+
+---
+
+### Log & Exponentials
+
+```python
+np.log(a1)
+np.exp(a1)
+```
+
+### Rounding
+
+```python
+np.round(a1)
+np.ceil(a1)
+np.floor(a1)
+```
+
+---
+
+## Indexing & Slicing
+
+```python
+a1 = np.arange(10)
+a2 = np.arange(12).reshape(3, 4)
+a3 = np.arange(8).reshape(2, 2, 2)
+```
+
+### 1D
+
+```python
+a1[5]
+```
+
+### 2D
+
+```python
+a2[0, 3]
+```
+
+### 3D
+
+```python
+a3[1, 0, 1]
+```
+
+### Slicing
+
+```python
+arr = np.arange(20)
+arr[2:15:2]
+```
+
+---
+
+## Iteration
+
+```python
+for i in np.nditer(a3):
+    print(i)
+```
+
+---
+
+## Reshaping & Combining
+
+```python
+a2 = np.arange(12).reshape(3, 4)
+a2.reshape(4, 3)
+a2.T          # Transpose
+a2.ravel()    # Flatten
+```
+
+### Stacking
+
+```python
+np.hstack((a4, a5))
+np.vstack((a4, a5))
+```
+
+### Splitting
+
+```python
+a1, a2 = np.hsplit(a4, 2)
+a1, a2, a3 = np.vsplit(a4, 3)
+```
+
+---
+
+## Python Lists vs NumPy Arrays (Performance)
+
+### Python List
+
+```python
+a = [i for i in range(1000000)]
+b = [i for i in range(1000000, 2000000)]
+
+import time
+start = time.time()
+c = [a[i] + b[i] for i in range(len(a))]
+print(time.time() - start)
+```
+
+### NumPy Array
+
+```python
+import numpy as np, time
+a = np.arange(1000000)
+b = np.arange(1000000, 2000000)
+
+start = time.time()
+c = a + b
+print(time.time() - start)
+```
+
+### Memory
+
+```python
+import sys
+a = [10 for i in range(1000000)]
+sys.getsizeof(a)
+
+c = np.arange(1000000)
+sys.getsizeof(c)
+```
+
+---
+
+## [F] Advanced Indexing
+
+### Fancy Indexing
+
+```python
+a = np.arange(24).reshape(6,4)
+print(a[[0, 2, 3, -1]])   # select rows
+print(a[:, [0, 2, 3]])    # select columns
+```
+
+### Boolean Indexing
+
+```python
+a = np.random.randint(1, 100, 24).reshape(6, 4)
+a[a > 50]                     # elements > 50
+a[(a > 50) & (a % 2 == 0)]    # even & >50
+a[~(a % 7 == 0)]              # not divisible by 7
+```
+
+---
+
+## [G] Broadcasting
+
+Broadcasting allows arithmetic operations on arrays of **different shapes**.
+
+### Example 1: Same Shape
+
+```python
+a = np.arange(6).reshape(2,3)
+b = np.arange(6,12).reshape(2,3)
+print(a + b)
+```
+
+### Example 2: Different Shape
+
+```python
+a = np.arange(6).reshape(2,3)
+b = np.arange(3).reshape(1,3)
+print(a + b)
+```
+
+### Example 3: Column Broadcasting
+
+```python
+x = np.arange(6).reshape(3,2)
+y = np.arange(3).reshape(3,1)
+print(x + y)
+```
+
+---
+
+## Broadcasting Rules
+
+1. Make both arrays have **same number of dimensions**.
+2. Sizes must be **equal** or one of them must be **1**.
+
+### Examples
+
+```python
+np.arange(3) + 5
+np.ones((3,3)) + np.arange(3)
+np.arange(3).reshape((3,1)) + np.arange(3)
+```
+
+---
