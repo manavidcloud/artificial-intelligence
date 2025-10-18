@@ -1,1 +1,1 @@
-# Day 8 - AI/ML - Oct 18, 2025 - 
+# 🗓️ **Day 10 - AI/ML - Oct 19, 2025 - Pandas**

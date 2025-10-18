@@ -3041,7 +3041,7 @@ dir(D)
 ---
 
 
-# 🧠 Day 7 - Oct 11th  2025
+# 🧠 Day 7 and 8- Oct 11th and 12th  2025
 
 ## 1. Joblib
 
@@ -3167,6 +3167,30 @@ e = np.arange(16).reshape(4, 4)
 f = np.arange(100).reshape(2, 10, 5)
 ```
 
+```python
+arr = a[a > 15]
+size = arr.size
+print('No. of Element', size)
+if size % 2 == 0:
+    print(arr.reshape(-1, 2))
+else:
+    print(arr.reshape(-1, size))
+
+arr2 = a.reshape(3, -1)
+print(arr2)
+
+# find out even numbers
+a[a % 2 == 0]
+
+# find all numbers greater than 50 and are even
+a[(a > 50) & (a % 2 == 0)]
+
+# find all numbers not divisible by 7
+a[(a % 7 != 0)]
+
+b = np.array([True, False, True, False])
+print(~b)
+```
 ---
 
 ## Random Numbers
@@ -3473,5 +3497,802 @@ np.arange(3) + 5
 np.ones((3,3)) + np.arange(3)
 np.arange(3).reshape((3,1)) + np.arange(3)
 ```
+
+---
+
+# 🗓️ **Day 9 - AI/ML - Oct 18, 2025 - Pandas**
+
+---
+
+## 🐼 What is Pandas?
+
+**Pandas** is a fast, powerful, flexible, and easy-to-use open-source data analysis and manipulation tool, built on top of Python.
+
+* Under the hood, Pandas mostly uses **NumPy**.
+* Pandas is used for **structured data** (like tables, CSVs, Excel files).
+* It’s **not ideal for unstructured data** (like images, videos, text logs).
+
+🔗 [Official Pandas About Page](https://pandas.pydata.org/about/index.html)
+
+---
+
+## 📊 Pandas Series
+
+A **Pandas Series** is like a **column in a table**.
+It’s a **1-D array** holding data of any type (int, float, string, etc.).
+
+> 📌 Think of a Series as a labeled list.
+
+---
+
+## 🧠 Importing Pandas
+
+```python
+import numpy as np
+import pandas as pd
+```
+
+---
+
+## 🧮 Series from Lists
+
+```python
+import numpy as np
+import pandas as pd
+
+country = ['India', 'China', 'Nepal']  # this is my list
+print(country)
+print(type(country))
+
+# Convert list to Series
+pd.Series(country)  # this will convert list into Series
+```
+
+---
+
+### 🧾 Example 2 – Series with Integers
+
+```python
+import numpy as np
+import pandas as pd
+
+runs = [10, 210, 350, 840, 50, 38, 129]
+runs_series = pd.Series(runs)
+print(runs_series)
+```
+
+---
+
+### 🧮 Example 3 – Custom Index
+
+```python
+import numpy as np
+import pandas as pd
+
+marks = [90, 28, 18, 58]
+subjects = ['English', 'Math', 'Hindi', 'SC']
+
+Student_Marks = pd.Series(marks, index=subjects)
+print(Student_Marks)
+
+# Access specific index value
+print(Student_Marks['Math'])
+```
+
+---
+
+### 🧩 Example 4 – Series from Dictionary
+
+```python
+import numpy as np
+import pandas as pd
+
+marks = {
+    'English': 90,
+    'Hindi': 80,
+    'Math': 99
+}
+
+# Name attribute gives Series a name
+marks_series = pd.Series(marks, name='Navid Marks')
+print(marks_series)
+```
+
+---
+
+## 🧱 Series Attributes
+
+```python
+import numpy as np
+import pandas as pd
+
+marks = {
+    'English': 90,
+    'Hindi': 80,
+    'Math': 99
+}
+
+marks_series = pd.Series(marks, name='Navid Marks')
+
+print(marks_series.size)       # number of elements
+print(marks_series.dtype)      # data type
+print(marks_series.name)       # name of series
+print(marks_series.is_unique)  # True if all unique
+print(marks_series.index)      # shows index labels
+print(marks_series.values)     # shows values
+```
+
+---
+
+## 📥 Series using `read_csv`
+
+```python
+import numpy as np
+import pandas as pd
+
+# Example 1: Basic read_csv
+subs = pd.read_csv('./Content/subs.csv')  # returns DataFrame
+
+# Convert to Series using squeeze
+subs = pd.read_csv('./Content/subs.csv').squeeze('columns')
+print(type(subs))  # pandas.core.series.Series
+```
+
+---
+
+## 🏏 Example – Kohli’s Runs CSV
+
+```python
+import numpy as np
+import pandas as pd
+
+# Wrong way (without index_col)
+vk = pd.read_csv('./Content/kohli_runs.csv').squeeze('columns')
+print(type(vk))  # pandas.core.frame.DataFrame
+```
+
+🧠 To fix:
+
+```python
+vk = pd.read_csv('./Content/kohli_runs.csv', index_col='Runs').squeeze('columns')
+print(type(vk))  # pandas.core.series.Series
+```
+
+---
+
+## 🎬 Example – Movies File (Series from CSV)
+
+```python
+import numpy as np
+import pandas as pd
+
+movies = pd.read_csv('/path_file/abc.csv', index_col='Movies').squeeze('columns')
+print(movies)
+```
+
+Or using column selection:
+
+```python
+movies_2 = pd.read_csv('/path_file/abc.csv')
+print(movies_2['movie'])
+print(type(movies_2['movie']))  # pandas.core.series.Series
+```
+
+Shortcut:
+
+```python
+movies_3 = pd.read_csv('/path_file/abc.csv')['movie']
+print(movies_3)
+print(type(movies_3))  # pandas.core.series.Series
+```
+
+---
+
+## 🧩 Series Methods
+
+```python
+movies_3.head()     # first 5 rows
+movies_3.tail()     # last 5 rows
+movies_3.sample()   # random sample
+movies_3.sample(5)  # 5 random samples
+```
+
+---
+
+## 🔢 Sorting Values
+
+```python
+import numpy as np
+import pandas as pd
+
+vk = pd.read_csv('./Content/subs.csv').squeeze('columns')
+
+# Sort descending
+vk.sort_values(ascending=False).head(1).values[0]
+```
+
+### In-place Sorting
+
+```python
+vk = vk.copy()
+vk.sort_values(ascending=False, inplace=True)
+```
+
+---
+
+## 🧮 Series Math Methods
+
+```python
+vk.count()     # total count
+vk.sum()       # total sum
+vk.mean()      # average
+vk.median()    # middle value
+vk.mode()      # most frequent value
+vk.std()       # standard deviation
+vk.var()       # variance
+vk.max()       # maximum value
+vk.describe()  # full statistical summary
+```
+
+🧠 *Percentiles (25%, 50%, 75%) show distribution spread.*
+
+---
+
+## 🎯 Series Indexing
+
+```python
+x = pd.Series([12, 48, 28, 68])
+print(x)
+```
+
+* Series **doesn’t support negative indexing** like lists.
+* You can access using labels or integer positions.
+
+```python
+x[1:3]       # slicing
+x[::2]       # every 2nd element
+```
+
+---
+
+## ✏️ Editing Series
+
+```python
+marks = [90, 28, 18, 58]
+subjects = ['English', 'Math', 'Hindi', 'SC']
+
+marks_series = pd.Series(marks, index=subjects)
+
+# Update single value
+marks_series['Math'] = 100
+
+# Update multiple values
+marks_series['Math':'SC'] = [40, 40]
+marks_series[3:] = [24, 20, 39]
+```
+
+---
+
+## 🧰 Series with Python Built-ins
+
+```python
+print(len(subs))
+print(type(subs))
+print(dir(subs))
+print(sorted(subs))
+print(min(subs))
+print(max(subs))
+```
+
+---
+
+## 🔄 Type Conversion
+
+```python
+list(marks_series)  # convert Series to list
+dict(marks_series)  # convert Series to dictionary
+```
+
+---
+
+## 🔍 Membership Operators
+
+```python
+'2 States (2014 film)' in movies           # search by index → True/False
+'Vickey Kaushal' in movies.values          # search by value → True/False
+```
+
+---
+
+## 🔁 Looping in Series
+
+```python
+for lead in movies:
+    print(lead)
+    break
+```
+
+Using index:
+
+```python
+for i in range(0, len(movies)):
+    if 'Salman Khan' == movies[i]:
+        print(movies.iloc[i])
+        break
+```
+
+---
+
+## 🧭 Summary
+
+| Concept               | Description                               |
+| --------------------- | ----------------------------------------- |
+| **Series**            | 1D labeled array in Pandas                |
+| **DataFrame**         | 2D labeled data (rows & columns)          |
+| **squeeze()**         | Converts DataFrame with 1 column → Series |
+| **index_col**         | Defines custom index when reading CSV     |
+| **.head() / .tail()** | View top/bottom rows                      |
+| **.describe()**       | Summary statistics                        |
+| **.sort_values()**    | Sort Series values                        |
+| **.is_unique**        | Checks for duplicates                     |
+
+---
+
+
+```mermaid
+flowchart TD
+    A[Start with Data] --> B[List / Dict / CSV / NumPy Array]
+    B --> C[Create Pandas Series]
+    C --> D{Series Attributes}
+    D --> D1(.size, .dtype, .name)
+    D --> D2(.index, .values, .is_unique)
+
+    C --> E{Series Operations}
+    E --> E1(Sorting → sort_values)
+    E --> E2(Statistics → mean, median, mode, std, var)
+    E --> E3(Description → describe)
+    E --> E4(Slicing / Indexing → [:], [label])
+
+    C --> F{Conversions}
+    F --> F1(To List → list(series))
+    F --> F2(To Dict → dict(series))
+
+    C --> G{Import from CSV}
+    G --> G1(read_csv)
+    G --> G2(squeeze('columns'))
+    G --> G3(index_col='ColumnName')
+
+    C --> H{Editing / Updates}
+    H --> H1(Single Value Update)
+    H --> H2(Multiple Value Update)
+
+    E --> I[Export / Visualization (Optional)]
+```
+
+
+
+---
+
+### 🧠 **How to Read This Diagram**
+
+- **A → B → C:**  
+  Start with data (like list, dict, or CSV) → create a **Pandas Series**.
+
+- **C → D:**  
+  Check **attributes** to understand your data.
+
+- **C → E:**  
+  Perform **operations** like sorting, math, or slicing.
+
+- **C → F:**  
+  Convert Series back to list or dictionary when needed.
+
+- **C → G:**  
+  Load Series directly from CSV using `read_csv()`.
+
+- **C → H:**  
+  Modify Series elements (single or multiple).
+
+---
+
+```mermaid
+flowchart LR
+    A[Pandas Library] --> B[Series]
+    A --> C[DataFrame]
+
+    %% Series side
+    B --> B1["1-Dimensional (Single Column)"]
+    B --> B2["Created from: list / dict / array / single column CSV"]
+    B --> B3["Label-based Index"]
+    B --> B4["Homogeneous Data (same type)"]
+    B --> B5["Access: series['label'] or series[index]"]
+
+    %% DataFrame side
+    C --> C1["2-Dimensional (Rows + Columns)"]
+    C --> C2["Created from: dict of lists / multiple Series / CSV / Excel"]
+    C --> C3["Row & Column Index (Label + Position)"]
+    C --> C4["Heterogeneous Data (different types allowed)"]
+    C --> C5["Access: df['column'] → Series OR df.iloc[row,col]"]
+
+    %% Relationship
+    B --> D["A single column of a DataFrame is a Series"]
+    D -.-> C
+```
+
+
+## Boolean Indexing, Series Methods & Utilities**
+
+---
+
+## 🧮 **1️⃣ Boolean Indexing on Series**
+
+### 🧠 Definition:
+
+**Boolean indexing** allows filtering data in a Series using **True/False** conditions.
+Only those elements where the condition is **True** are returned.
+
+### 🧩 Example:
+
+```python
+import numpy as np
+import pandas as pd
+
+marks = [90, 28, 18, 58]
+subjects = ['English', 'Math', 'Hindi', 'Science']
+
+Student_Marks = pd.Series(marks, index=subjects)
+print(Student_Marks)
+
+# Boolean condition: values greater than 50
+print(Student_Marks > 50)
+
+# Apply Boolean filter
+print(Student_Marks[Student_Marks > 50])
+```
+
+### 🖥️ Output:
+
+```
+English    90
+Math       28
+Hindi      18
+Science    58
+dtype: int64
+
+English     True
+Math       False
+Hindi      False
+Science     True
+dtype: bool
+
+English    90
+Science    58
+dtype: int64
+```
+
+✅ **Use Case:** Quickly filter top scores, large values, or specific conditions.
+
+---
+
+## 📊 **2️⃣ Plotting Graphs on Series**
+
+### 🧠 Definition:
+
+You can visualize data directly from Series using **`.plot()`** method (requires `matplotlib`).
+
+### 🧩 Example:
+
+```python
+import pandas as pd
+import matplotlib.pyplot as plt
+
+subs = pd.Series([120, 200, 350, 400, 150], 
+                 index=['Mon', 'Tue', 'Wed', 'Thu', 'Fri'])
+
+# Line Plot
+subs.plot(title='Subscribers per Day', marker='o')
+plt.show()
+
+# Pie Plot
+subs.head(3).plot(kind='pie', autopct='%1.1f%%', title='Top 3 Days')
+plt.show()
+
+# Bar Plot
+subs.plot(kind='bar', color='orange', title='Subscribers by Day')
+plt.show()
+```
+
+✅ **Use Case:** Quick visual summary of Series values (e.g., sales, views, scores).
+
+---
+
+## ⚙️ **3️⃣ `astype()` – Type Conversion**
+
+### 🧠 Definition:
+
+Used to **convert Series data type**, e.g., from `int64` → `int16` to reduce memory.
+
+### 🧩 Example:
+
+```python
+import pandas as pd
+import sys
+
+vk = pd.Series([120, 150, 200, 250, 300])
+print("Before Conversion:", vk.dtype)
+print("Memory Size:", sys.getsizeof(vk))
+
+vk2 = vk.astype('int16')  # Convert to smaller type
+print("After Conversion:", vk2.dtype)
+print("Memory Size after:", sys.getsizeof(vk2))
+```
+
+✅ **Use Case:** Optimize memory usage in large datasets.
+
+---
+
+## 🎯 **4️⃣ `between()` – Range Filtering**
+
+### 🧠 Definition:
+
+Selects values **between two limits** (inclusive by default).
+
+### 🧩 Example:
+
+```python
+vk = pd.Series([5, 10, 15, 20, 25, 30])
+print(vk[vk.between(10, 20)])
+```
+
+### 🖥️ Output:
+
+```
+1    10
+2    15
+3    20
+dtype: int64
+```
+
+✅ **Use Case:** Filter numeric ranges, e.g., ages between 18–30 or prices between 100–500.
+
+---
+
+## 🧱 **5️⃣ `clip()` – Limit Values**
+
+### 🧠 Definition:
+
+Restricts all values to stay **within a specified range**.
+
+### 🧩 Example:
+
+```python
+subs = pd.Series([50, 120, 180, 300, 400])
+print(subs.clip(100, 200))
+```
+
+### 🖥️ Output:
+
+```
+0    100
+1    120
+2    180
+3    200
+4    200
+dtype: int64
+```
+
+✅ **Use Case:** Handle outliers — e.g., cap high values or raise low values to a minimum threshold.
+
+---
+
+## 🔁 **6️⃣ `drop_duplicates()` & `duplicated()`**
+
+### 🧠 Definition:
+
+* `drop_duplicates()` → Removes duplicate values.
+* `duplicated()` → Returns `True/False` for duplicates.
+
+### 🧩 Example:
+
+```python
+tmp = pd.Series([1, 2, 4, 1, 4, 2, 6, 9, 3])
+print("Original:", tmp.tolist())
+
+print("\nAfter drop_duplicates:")
+print(tmp.drop_duplicates())
+
+print("\nDuplicate Count:", tmp.duplicated().sum())
+```
+
+### 🖥️ Output:
+
+```
+Original: [1, 2, 4, 1, 4, 2, 6, 9, 3]
+After drop_duplicates:
+0    1
+1    2
+2    4
+6    6
+7    9
+8    3
+dtype: int64
+Duplicate Count: 3
+```
+
+✅ **Use Case:** Clean up repeated entries in a dataset.
+
+---
+
+## 🚫 **7️⃣ Handling Missing Data (`isnull`, `dropna`, `fillna`, `replace`)**
+
+### 🧠 Definition:
+
+* `isnull()` → Detects missing (NaN) values.
+* `dropna()` → Removes NaN entries.
+* `fillna()` → Replaces NaN with a given value.
+* `replace()` → Replaces specific values.
+
+### 🧩 Example:
+
+```python
+import numpy as np
+import pandas as pd
+
+tmp = pd.Series([1, 2, np.nan, 4, np.nan, 6])
+
+print("isnull():")
+print(tmp.isnull())
+
+print("\nDrop NaN:")
+print(tmp.dropna())
+
+print("\nFill NaN with 0:")
+print(tmp.fillna(0))
+
+print("\nReplace NaN with 'No Value':")
+print(tmp.replace(np.nan, 'No Value'))
+```
+
+### 🖥️ Output:
+
+```
+isnull():
+0    False
+1    False
+2     True
+3    False
+4     True
+5    False
+dtype: bool
+
+Drop NaN:
+0    1.0
+1    2.0
+3    4.0
+5    6.0
+dtype: float64
+
+Fill NaN with 0:
+0    1.0
+1    2.0
+2    0.0
+3    4.0
+4    0.0
+5    6.0
+dtype: float64
+```
+
+✅ **Use Case:** Clean incomplete data in real-world datasets.
+
+---
+
+## 🔎 **8️⃣ `isin()` – Membership Checking**
+
+### 🧠 Definition:
+
+Checks whether elements of a Series exist in a **list of values**.
+
+### 🧩 Example:
+
+```python
+vk = pd.Series([10, 20, 30, 40, 50])
+print(vk.isin([10, 50, 70]))
+
+# Filter
+print(vk[vk.isin([10, 50, 70])])
+```
+
+### 🖥️ Output:
+
+```
+0     True
+1    False
+2    False
+3    False
+4     True
+dtype: bool
+
+0    10
+4    50
+dtype: int64
+```
+
+✅ **Use Case:** Check if multiple values exist in a dataset (e.g., filter specific cities or categories).
+
+---
+
+## 🧮 **9️⃣ `apply()` – Apply Function on Each Element**
+
+### 🧠 Definition:
+
+`apply()` lets you **apply a custom or lambda function** to each element of a Series.
+
+### 🧩 Example 1 – String Manipulation:
+
+```python
+movies = pd.Series(["Mohamad Navid", "Aamir Khan", "Deepika Padukone"])
+
+# Convert all names to uppercase
+print(movies.apply(lambda x: x.upper()))
+
+# Get first names only
+print(movies.apply(lambda x: x.split()[0]))
+```
+
+### 🧩 Example 2 – Conditional Labeling:
+
+```python
+subs = pd.Series([120, 200, 90, 150])
+
+mean_val = subs.mean()
+subs_status = subs.apply(lambda x: 'Good Day' if x > mean_val else 'Bad Day')
+print(subs_status)
+```
+
+### 🖥️ Output:
+
+```
+0    Good Day
+1    Good Day
+2    Bad Day
+3    Bad Day
+dtype: object
+```
+
+✅ **Use Case:**
+Apply logic across all elements — e.g., grading, categorizing, cleaning strings.
+
+---
+
+## 💾 **🔟 Export Series to CSV**
+
+### 🧠 Definition:
+
+Use `.to_csv()` to export Series data to a CSV file.
+
+### 🧩 Example:
+
+```python
+subs_status.to_csv('subs_status.csv', header=True)
+```
+
+✅ **Use Case:** Save processed or analyzed Series for later use.
+
+---
+
+## 🧭 Summary Table
+
+| Method              | Purpose                 | Example                   |
+| ------------------- | ----------------------- | ------------------------- |
+| `astype()`          | Change data type        | `s.astype('int16')`       |
+| `between()`         | Filter within range     | `s[s.between(10,20)]`     |
+| `clip()`            | Limit values            | `s.clip(0,100)`           |
+| `drop_duplicates()` | Remove duplicate values | `s.drop_duplicates()`     |
+| `isnull()`          | Detect missing values   | `s.isnull()`              |
+| `fillna()`          | Replace NaN             | `s.fillna(0)`             |
+| `replace()`         | Replace specific value  | `s.replace(np.nan, 'NA')` |
+| `isin()`            | Membership check        | `s.isin([10,20])`         |
+| `apply()`           | Apply custom logic      | `s.apply(lambda x: x*2)`  |
+| `to_csv()`          | Export to file          | `s.to_csv('data.csv')`    |
 
 ---
