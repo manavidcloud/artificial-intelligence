@@ -762,7 +762,7 @@ Exception Occurred : division by zero
 Value of c : 0
 Thank you
 ```
-
+  
 ---
 
 ### Generic `Exception`
