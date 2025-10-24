@@ -896,10 +896,6 @@ not for predefined ones.
 
 ---
 
-Would you like me to **export this as a `.ipynb` (Jupyter)** or **`.pdf` study sheet** with a clickable table of contents and highlighted sections next?
-
----
-
 # Day 4: AI - 28th Sept - 2025 - Regular expression
 
 ### Regular Expressions
@@ -4296,3 +4292,106 @@ subs_status.to_csv('subs_status.csv', header=True)
 | `to_csv()`          | Export to file          | `s.to_csv('data.csv')`    |
 
 ---
+
+ # 🗓️ **Day 10 - AI/ML - Oct 19, 2025 - Pandas** - missed first 30mins 
+
+movies[movies['original_title'] == 'Tanu Weds Manu Returns'][['original_title', 'actors']]
+
+
+### Rename column in dataframe
+students_df.rename(columns={'iq': 'IQ', 'marks': 'Marks'},inplace=True)
+print(students_df)
+
+
+### Math Methods
+
+print(students_df)
+```
+Sample DataFrame output:
+
+| name    | IQ  | Percentage | LPA |
+|---------|-----|------------|-----|
+| kartik  | 100 | 80         | 10  |
+| ankit   | 90  | 70         | 7   |
+| rupesh  | 120 | 100        | 14  |
+| rishabh | 80  | 50         | 2   |
+| amit    | 0   | 0          | 0   |
+| ankita  | 0   | 0          | 0   |
+```
+math - sum
+student_df.sum() - by defualt it access colum wise axis =0
+OR 
+student_df.sum(x axis=0) - it gives same value
+
+if want to axis =1 row  wise
+student_df.sum( y axis=1)
+
+
+math - min
+- min is like normal average 
+student_df.mean()
+
+
+
+### Selecting cols from a DataFrame
+single
+
+ipl['venue]
+
+ipl['team1', 'team2','venue']
+
+### Selecting rows from a DataFrame
+
+- **iloc** - searches using index positions
+movies.iloc[]
+movies.iloc[::5]
+movies.iloc[0,4,5]
+
+
+
+- **loc** - searches using index labels, lock start with index=1
+stdent_df
+
+stdents_df.loc[(0)]
+
+stdents_df.loc['ankit']
+
+stdents_df.loc['ankit':'rishabh']
+
+stdents_df.loc[['ankit','rishabh']]
+
+stdents_df.loc[[search_names]]
+
+### Selecting both rows and cols
+
+iloc[0:3,0:2]
+
+0:3 - row 0 1 2
+0:2 - coloum 0 1 
+
+
+
+
+
+### Filtering a DataFrame
+
+mask = ips['Mathcnumber'] == 'Final'
+print(mask)
+
+
+ipl['mask']
+print(ipl['mask'])
+
+print(ipl['mask'][['Team1', 'Team2']])
+
+### Adding new cols
+
+### Important DataFrame Functions
+
+```
+# value_counts
+# find which player has won most potm -> in finals and qualifiers
+# Toss decision plot
+
+---
+
