@@ -1,6 +1,4 @@
-Great — you’ve listed a comprehensive set of Python tools, frameworks, and infrastructure technologies spanning the **entire ML lifecycle**. Let’s organize and clarify them by **category and purpose**, so it’s easier to understand how each fits into a real-world ML system or MLOps pipeline:
-
----
+# AI/ML Roadmap
 
 ## 🧮 **Data Analysis & BI (Exploration & Visualization)**
 
