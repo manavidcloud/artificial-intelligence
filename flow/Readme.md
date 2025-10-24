@@ -98,6 +98,9 @@ Here’s how you can imagine them working in an **ML system lifecycle**:
 
 ---
 ![MLOps Workflow](image.png)
+
+---
+
 ```mermaid
 graph TD
     A[Learn Machine Learning Life Cycle] --> B[Master MLOps Fundamentals]
