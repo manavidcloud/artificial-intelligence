@@ -36,3 +36,54 @@ graph TD
     J --> J9[Joblib]
     B --> K[Linux, Git, Cloud, Networking]
 ```
+
+
+### Machine Learning Life Cycle & Fundamentals```mermaid
+graph TD
+    A[Machine Learning Life Cycle] --> B[MLOps Fundamentals]
+    B --> C[Python for MLOps]
+    B --> D[Linux, Git, Cloud, Networking]
+```
+
+### Python Packages for MLOps```mermaid
+graph TD
+    A[Python for MLOps] --> B[numpy]
+    A --> C[pandas]
+    A --> D[scikit-learn]
+    A --> E[MLflow]
+    A --> F[DVC]
+    A --> G[FastAPI]
+    A --> H[PyYAML]
+    A --> I[pytest]
+    A --> J[Joblib]
+```
+
+### MLOps Core Practices```mermaid
+graph TD
+    A[MLOps Fundamentals] --> B[Experiment Tracking - MLflow]
+    A --> C[Data & Model Versioning - DVC]
+    A --> D[Orchestration & Pipelines]
+    D --> D1[Cubeflow Pipelines]
+    D --> D2[Argo Workflows]
+    D --> D3[Airflow]
+    A --> E[Model Deployment]
+    E --> E1[Docker]
+    E --> E2[FastAPI/Flask]
+    E --> E3[Kserve]
+    E --> E4[TensorFlow Serving]
+```
+
+### Platforms, Infrastructure & Monitoring```mermaid
+graph TD
+    A[MLOps Fundamentals] --> B[Platforms]
+    B --> B1[Kubernetes]
+    B --> B2[Virtual Machines]
+    A --> C[Infrastructure as Code]
+    C --> C1[Terraform]
+    C --> C2[Pulumi]
+    C --> C3[Crossplane]
+    A --> D[Observability & Monitoring]
+    D --> D1[Prometheus + Grafana]
+    D --> D2[Fiddler]
+    D --> D3[ELK Stack / OpenSearch]
+```
