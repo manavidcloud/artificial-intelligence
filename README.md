@@ -68,5 +68,3 @@ Focus: Generative AI, reinforcement learning, scaling AI in enterprises.
 2. **Intermediate (6–12 months)** → Core ML + TensorFlow + AWS ML Specialty.
 3. **Advanced (12–24 months)** → Deep Learning + Generative AI + NVIDIA or Microsoft AI Engineer.
 4. **Expert (2+ years)** → MIT/Stanford AI programs + leadership-level certifications.
-
-![Roadmap blueprint of AI certifications from beginner to expert](image.png)
