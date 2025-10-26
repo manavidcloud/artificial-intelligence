@@ -4394,5 +4394,5 @@ print(ipl['mask'][['Team1', 'Team2']])
 # Toss decision plot
 
 ---
-
+  
    

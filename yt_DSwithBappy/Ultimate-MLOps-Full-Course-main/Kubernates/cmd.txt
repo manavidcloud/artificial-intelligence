@@ -1,0 +1,54 @@
+
+
+
+git clone https://github.com/pycaret/pycaret-deployment-google.git
+
+export PROJECT_ID=focal-baton-276315
+
+docker build -t gcr.io/${PROJECT_ID}/insurance-app:v1 .
+
+docker images
+
+gcloud auth configure-docker gcr.io
+
+docker push gcr.io/${PROJECT_ID}/insurance-app:v1
+
+gcloud config set compute/zone us-central1
+
+gcloud container clusters create insurance-cluster --num-nodes=1
+
+kubectl create deployment insurance-app --image=gcr.io/${PROJECT_ID}/insurance-app:v1 
+
+kubectl expose deployment insurance-app --type=LoadBalancer --port 80 --target-port 8080
+
+
+
+
+
+FROM python:3.9
+
+RUN pip install virtualenv
+ENV VIRTUAL_ENV=/venv
+RUN virtualenv $VIRTUAL_ENV -p python3
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+WORKDIR /app
+ADD . /app
+
+# Install dependencies
+RUN pip install -r requirements.txt
+
+# Expose port 
+ENV PORT=8080
+
+# Run the application
+CMD ["gunicorn", "app:app", "--config=config.py"]
+
+
+
+pycaret
+Flask==1.1.1
+Jinja2==2.10.1
+gunicorn==19.9.0
+certifi==2019.11.28
+itsdangerous==1.1.0
