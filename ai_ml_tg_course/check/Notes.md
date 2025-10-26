@@ -4395,4 +4395,743 @@ print(ipl['mask'][['Team1', 'Team2']])
 
 ---
   
-   
+# Day 11: AI/ML Notes - October 25, 2025
+
+## Important Pandas Functions for Data Analysis
+
+Here are various useful Pandas functions for data processing and analysis, illustrated with python code and sample outputs. Comments have been corrected for clarity and important descriptions have been added for each operation.
+
+***
+
+### `value_counts`
+Shows the frequency of each unique value in a Series. Useful to quickly summarize categorical (or discretized numerical) data.
+
+```python
+import numpy as np
+import pandas as pd
+a = pd.Series([1, 1, 1, 2, 2, 3])
+print(a.value_counts())
+```
+**Output:**
+```
+1    3
+2    2
+3    1
+```
+*This shows how many times each number appears in the Series.*
+
+***
+
+### `value_counts` with Changing dtype
+
+You can specify the datatype when creating a Series. Later, you can change the result's datatype for memory optimization.
+
+```python
+import numpy as np
+import pandas as pd
+a = pd.Series([1, 1, 1, 2, 2, 3], dtype='int8')
+result = a.value_counts()
+print(result)
+result = result.astype('int8')  # Change type from int64 to int8 for lower memory usage
+print(result)
+```
+**Note**:
+- By default, `value_counts` outputs int64.
+- Use `dtype` when building a Series/DataFrame.
+- Use `astype` to change the type after data is loaded, for efficiency.
+
+***
+
+### `value_counts` with DataFrame
+
+Shows how often each row combination is repeated.
+
+```python
+import numpy as np
+import pandas as pd
+marks = pd.DataFrame([
+    [100, 80, 10],
+    [90, 70, 7],
+    [120, 100, 14],
+    [80, 70, 14],
+    [80, 70, 14]
+], columns=['iq', 'marks', 'package'])
+
+print(marks)
+print(marks.value_counts())
+```
+**Output:**
+```
+    iq  marks  package
+0  100     80       10
+1   90     70        7
+2  120    100       14
+3   80     70       14
+4   80     70       14
+
+iq  marks  package
+80  70     14         2
+90  70     7          1
+100 80     10         1
+120 100    14         1
+Name: count, dtype: int64
+```
+*Rows are counted as unique combinations.*
+
+***
+
+### Working with `.str.isdigit()` for Filtering
+
+`str.isdigit()` checks if each string element is digits only.
+
+```python
+ipl = pd.read_csv('./content/ipl-matches.csv')
+# Filter matches with non-numeric match numbers (like 'Final', 'QF1')
+non_numeric_matches = ipl[~ipl['MatchNumber'].str.isdigit()]
+print(non_numeric_matches[['MatchNumber', 'Player_of_Match']])
+```
+*The tilde `~` negates the boolean Series, so it selects non-numeric match numbers.*
+
+***
+
+### `sort_values` Function
+
+Used to sort your Series or DataFrame by column values.
+
+```python
+import pandas as pd
+x = pd.Series([12, 14, 1, 56, 89])
+print(x.sort_values())               # Ascending sort (default)
+print(x.sort_values(ascending=False))  # Descending sort
+```
+
+***
+
+### Sorting DataFrames
+
+```python
+import pandas as pd
+movies = pd.read_csv('./content/movies.csv')
+print(movies['title_x'].head())
+print(movies.sort_values('title_x', ascending=False)['title_x'].head())
+```
+
+***
+
+### Example: Sorting a DataFrame
+
+```python
+import numpy as np
+import pandas as pd 
+students = pd.DataFrame({
+    'name': ['rakesh', 'ankit', 'rupesh', np.nan, 'mrityunjay', np.nan, 'rishabh', np.nan, 'aditya', np.nan],
+    'college': ['bit', 'iit', 'vit', np.nan, np.nan, 'vlsi', 'ssit', np.nan, np.nan, 'git'],
+    'branch': ['eee', 'it', 'cse', np.nan, 'me', 'ce', 'civ', 'cse', 'bio', np.nan],
+    'cgpa': [6.66, 8.25, 6.41, np.nan, 5.6, 9.0, 7.4, 10, 7.4, np.nan],
+    'package': [4, 5, 6, np.nan, 6, 7, 8, 9, np.nan, np.nan]
+})
+print(students)
+print(students.sort_values('package', ascending=False))
+```
+
+***
+
+### `rank`
+Ranks each value in the Series. The smallest value gets the lowest rank.
+
+```python
+import pandas as pd
+s = pd.Series([10, 20, 15, 10])
+print(s.rank())
+```
+**Output:**
+```
+0    1.5
+1    4.0
+2    3.0
+3    1.5
+dtype: float64
+```
+*Duplicates get the average rank.*
+
+***
+
+### `rank` with Methods
+
+```python
+import pandas as pd
+s = pd.Series([100, 200, 200, 300])
+print(s.rank(method='average'))  # Default: average
+print(s.rank(method='min'))
+print(s.rank(method='max'))
+print(s.rank(method='first'))
+print(s.rank(method='dense'))
+```
+**Output:**
+```
+average:
+0    1.0
+1    2.5
+2    2.5
+3    4.0
+
+min:
+0    1.0
+1    2.0
+2    2.0
+3    4.0
+
+max:
+0    1.0
+1    3.0
+2    3.0
+3    4.0
+
+first:
+0    1.0
+1    2.0
+2    3.0
+3    4.0
+
+dense:
+0    1.0
+1    2.0
+2    2.0
+3    3.0
+```
+*Different ranking methods help in resolving tie-breaking in different ways.*
+
+***
+
+### `groupby`
+Groups data for aggregation and analysis.
+
+```python
+import pandas as pd
+movies = pd.read_csv('./content/movies.csv')
+genre = movies.groupby('Genre')
+
+print(genre.std(numeric_only=True))  # Standard deviation by genre (numeric columns only)
+
+# Top 3 genres by total earnings
+print(movies.groupby('Genre').sum(numeric_only=True)['Gross'].sort_values(ascending=False).head(3))
+
+# Genres with highest average IMDB rating
+print(movies.groupby('Genre')['IMDB'].mean().sort_values(ascending=False).head(2))
+```
+
+***
+
+### Find Director with Most Popularity
+
+The director whose movies have the highest sum of votes:
+
+```python
+print(movies.groupby('Director')['No_of_votes'].sum().sort_values(ascending=False).head())
+```
+
+***
+
+### Find the Number of Movies Done by Each Actor
+
+```python
+print(movies['Star1'].value_counts())
+```
+
+***
+
+### Using `merge` for Data Combination
+
+Joining DataFrames horizontally (by columns):
+
+```python
+import numpy as np
+import pandas as pd
+
+marks1 = pd.DataFrame([
+    [100, 80, 10],
+    [90, 70, 7]
+], columns=['iq', 'marks', 'package'])
+
+marks2 = pd.DataFrame([
+    [120, 100, 14],
+    [80, 70, 14],
+    [80, 70, 14]
+], columns=['iq', 'marks', 'package'])
+
+combined_marks = pd.concat([marks1, marks2])
+print(combined_marks)
+```
+
+#### Combine Multiple DataFrames
+
+```python
+marks3 = pd.DataFrame([
+    [120, 100, 14],
+    [80, 70, 14],
+    [80, 70, 14]
+], columns=['iq', 'marks', 'package3'])  # Different column
+
+new_combined_marks = pd.concat([marks1, marks3], ignore_index=True, axis=0)
+print(new_combined_marks)
+```
+
+*Vertical stacking by default (axis=0). For column-wise (horizontal) joining use `axis=1`.*
+
+***
+
+### Customer and Order Data: Exploring Different Joins
+
+```python
+import pandas as pd
+
+customer = pd.DataFrame([
+    [101, 'Navid', 'Nanded'],
+    [102, 'Raj', 'Pune'],
+    [103, 'Bob', 'US']
+], columns=['cid', 'name', 'location'])
+
+order = pd.DataFrame([
+    [1001, 101, 500],
+    [1002, 102, 1500],
+    [1003, 103, 4000],
+    [1004, 101, 820],
+    [1005, 102, 90],
+], columns=['oid', 'cid', 'sales'])
+
+# Left join
+print(order.merge(customer, how='left', on='cid'))
+
+# Right join
+print(order.merge(customer, how='right', on='cid'))
+
+# Outer join, showing rows without matches on both sides
+merged = order.merge(customer, how='outer', on='cid')
+print(merged[merged['oid'].isnull()])
+print(merged[merged['cid'].isnull()])
+```
+*Different merge strategies help you explore all possible relationships and missing links between tables.*
+
+***
+---
+
+
+========================
+
+# Day 12 - AI/ML - Oct 26, 2025  
+## Startup Funding Project Data Cleaning & Streamlit Dashboard
+
+***
+
+### Step 1: Importing and Inspecting the Raw File
+
+```python
+import numpy as np
+import pandas as pd
+
+# Load the startup funding CSV file
+df = pd.read_csv('startup_funding.csv')  # Loads the data from CSV
+print(df)  # Displays the first and last 5 records by default
+
+# Get an overview of the DataFrame (columns, count, types, memory)
+df.info()
+```
+
+***
+
+### Remove Unnecessary Columns
+
+```python
+# Remove the 'Remarks' column, which is not needed for analysis
+df.drop(columns=['Remarks'], inplace=True)
+print(df.info())
+```
+
+***
+
+### Indexing and Accessing Rows
+
+```python
+# Set 'Sr No' as the index for custom row indexing (like roll numbers)
+df.set_index('Sr No', inplace=True)
+
+# Access row by custom index (example: 1, assuming 101 is in your data)
+print(df.loc[1])
+
+# Reset index to use default integer indexing
+print(df.iloc[0])  # First row using default integer-based indexing
+```
+
+***
+
+### Rename Columns for Consistency
+
+```python
+# Rename columns for easier access and consistency
+df.rename(columns={
+    'Date dd/mm/yyyy': 'date',
+    'Startup Name': 'startup',
+    'Industry Vertical': 'vertical',
+    'SubVertical': 'subvertical',
+    'City  Location': 'city',
+    'Investors Name': 'investors',
+    'InvestmentType': 'round',
+    'Amount in USD': 'amount'
+}, inplace=True)
+
+print(df.head())
+df.info()
+```
+*Proper column names improve code readability and reduce typos in future analysis.*
+
+***
+
+### Type Casting for Numeric Columns
+
+```python
+# Dtype is important: 'amount' column should be numeric, not object/string
+
+# Example type conversion for amount strings
+amt1 = '20000'
+print(type(amt1))  # Shows as str
+amt2 = int(amt1)
+print(amt2)
+print(type(amt2))  # Now int
+
+# Handling numbers with commas (e.g., '20,000')
+amt1 = '20,000'
+amt1 = amt1.replace(',', '')
+amt2 = int(amt1)
+print(amt2)
+print(type(amt2))
+```
+
+#### Clean `amount` Column (remove commas and handle non-numeric values)
+
+```python
+df['amount'] = df['amount'].str.replace(',', '')
+df.head(5)
+
+# Function to check if a value can be converted to int
+def can_convert_to_int(x):
+    try:
+        int(x)
+        return True
+    except:
+        return False
+
+# Mask for convertible values
+convertible_mask = df['amount'].apply(can_convert_to_int)
+print(type(convertible_mask))  # pandas Series of bools
+
+# Show rows where 'amount' is invalid (can't convert)
+invalid_values = df.loc[~convertible_mask, 'amount']
+print(invalid_values)
+
+# Show unique invalid values
+print(df.loc[~convertible_mask, 'amount'].unique())
+print(len(df.loc[~convertible_mask, 'amount'].unique()))
+
+# Replace invalid values in 'amount' with "0"
+df.loc[~convertible_mask, 'amount'] = '0'
+
+# Convert column to integer type
+df['amount'] = df['amount'].astype(int)
+df.info()
+```
+*Ensures the 'amount' column is fully numeric for analysis and aggregation.*
+
+***
+
+### Convert USD to INR
+
+```python
+# Convert 'amount' from USD to INR (in millions)
+def to_inr(dollar):
+    inr = dollar * 88.2
+    return inr / 1_000_000
+
+df['amount'] = df['amount'].apply(to_inr)
+df.head()
+```
+*This transformation is necessary for country-specific analysis.*
+
+***
+
+### Parsing and Standardizing Dates
+
+```python
+from datetime import datetime
+
+# Flexibly parse dates with multiple possible formats
+def parse_mixed_date(date_str):
+    for fmt in ("%d/%m/%Y", "%m/%d/%Y"):
+        try:
+            return datetime.strptime(date_str, fmt)
+        except ValueError:
+            continue
+    return pd.NaT  # Return Not-a-Time if parsing fails
+
+df['date'] = df['date'].apply(parse_mixed_date)
+df.info()
+```
+*Standardized dates enable time-series analysis, filtering, and proper grouping.*
+
+***
+
+### Drop Rows with Crucial Missing Data
+
+```python
+df = df.dropna(subset=['date', 'startup', 'vertical', 'city', 'investors', 'round', 'amount'])
+df.info()
+```
+*Removes rows with missing essential data for reliable analysis.*
+
+***
+
+### Extract Date Components
+
+```python
+# Extract day, month, and year for time-based analysis
+df['day'] = df['date'].dt.day
+df['month'] = df['date'].dt.month
+df['year'] = df['date'].dt.year
+```
+
+***
+
+### Save the Cleaned Data
+
+```python
+df.to_csv('startup_cleaned.csv', index=False)
+```
+*Saves the fully cleaned dataset for downstream work and application development.*
+
+***
+
+### Investor Column Cleaning and Analysis
+
+```python
+# Investor field may contain multiple names separated by commas
+print(df['investors'].head())
+
+# Convert investor strings to a list
+investor_lists = df['investors'].str.split(',')
+print(type(investor_lists))  # pandas Series with lists
+
+# Flatten all investors into a flat list
+flat_investors = (df['investors'].str.split(',')).sum()
+print(set(flat_investors))  # Unique investor names, now cleaned
+```
+
+***
+
+### Filter and Analyze 'Tiger Global Management' Investments
+
+```python
+# Find rows where 'Tiger Global Management' is mentioned as an investor
+print(df[df['investors'].str.contains('Tiger Global Management')].head())
+print(df[df['investors'].str.contains('Tiger Global Management')].head(10))
+
+# Grouping by startup, total invested by Tiger Global Management
+print(
+    df[df['investors'].str.contains('Tiger Global Management')]
+    .groupby('startup')['amount']
+    .sum()
+    .sort_values(ascending=False)
+)
+
+# Show as pie chart (requires matplotlib inline OR use with Streamlit/plt.show())
+df[df['investors'].str.contains('Tiger Global Management')].groupby('startup')['amount'].sum().sort_values(ascending=False).plot(kind='pie')
+df[df['investors'].str.contains('Tiger Global Management')].groupby('city')['amount'].sum().sort_values(ascending=False).plot(kind='pie')
+```
+
+***
+
+### Summarize Tiger Global Activity by Year
+
+```python
+# Create 'year' from date if not already present
+df['year'] = df['date'].dt.year
+
+# Group invested amount by year
+print(df[df['investors'].str.contains('Tiger Global Management')].groupby('year')['amount'].sum())
+```
+
+***
+
+## Streamlit and Dashboard Code Example
+
+Install with `pip install streamlit matplotlib`  
+Run app: `streamlit run app.py`
+
+```python
+import streamlit as st
+import pandas as pd
+import time
+
+st.title('Startup Dashboard')
+st.header('I am learning Streamlit')
+st.subheader('Salman Khan!')
+st.write('This is a normal text')
+
+# Example markdown and code display
+st.markdown("""
+## My favorite movies
+- Race 3
+- Humshakals
+- Housefull
+""")
+st.code("""
+def foo(input):
+    return foo*2
+""")
+
+# Example DataFrame display
+df = pd.DataFrame({
+    'name': ['Nitish', 'Ankit', 'Anupam'],
+    'marks': [50, 60, 70],
+    'package': [10, 12, 14]
+})
+st.dataframe(df)
+
+# Metric card
+st.metric('Revenue', 'Rs 3L', '-3%')
+
+# JSON (dictionary example)
+st.json({
+    'name': ['Rakesh', 'Sumit', 'Kapil'],
+    'marks': [50, 60, 70],
+    'package': [10, 12, 14]
+})
+
+st.image('unnamed.jpg')
+st.video('For Loop in Python.mp4')
+
+# Column layout for images
+col1, col2, col3 = st.columns(3)
+with col1:
+    st.image('unnamed.jpg')
+with col2:
+    st.image('unnamed.jpg')
+with col3:
+    st.image('unnamed.jpg')
+
+# Feedback alerts
+st.error('Login Failed')
+st.success('Login Successful')
+st.info('Login Successful')
+st.warning('Login Successful')
+
+# Progress bar example
+bar = st.progress(0)
+for i in range(1, 51):
+    time.sleep(1)
+    bar.progress(i)
+
+# Input widgets
+email1 = st.text_input('Enter email', key='email1')
+number = st.number_input('Enter age')
+st.date_input('Enter regis date')
+email2 = st.text_input('Enter email', key='email2')
+password = st.text_input('Enter password')
+gender = st.selectbox('Select gender', ['male', 'female', 'others'])
+btn
+```
+---
+
+# Streaming program
+```python
+import streamlit as st
+import pandas as pd 
+import numpy as np 
+import matplotlib.pyplot as plt
+
+# Set up the Streamlit app with a wide layout and a descriptive page title
+st.set_page_config(layout="wide", page_title='Startup Analysis')
+
+# Load the cleaned startup funding data
+df = pd.read_csv('startup_cleanded.csv')
+
+# Convert the 'date' column to pandas datetime format.
+# This ensures unparseable dates become NaT (missing), making further time-based analysis reliable.
+df['date'] = pd.to_datetime(df['date'], errors='coerce')
+
+# Create new columns for month and year, extracted from the parsed date for easier grouping and analysis.
+df['month'] = df['date'].dt.month
+df['year'] = df['date'].dt.year
+
+# This function handles the main dashboard analysis and generates summary metrics as well as trend graphs
+def load_overall_analysis():
+    # Calculate the total amount invested across all startups
+    total = df['amount'].sum()
+
+    # Find the maximum amount funded in a single deal for any startup
+    max_funding = (
+        df.groupby('startup')['amount']
+        .max()
+        .sort_values(ascending=False) # Sort to get the highest funding
+        .head(1)
+        .values[0]
+    )
+
+    # Calculate the average total funding received by startups
+    avg_funding = df.groupby('startup')['amount'].sum().mean()
+
+    # Count the number of unique funded startups
+    num_startups = df['startup'].nunique()
+
+    # Display four summary metric cards at the top of the dashboard
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric('Total', f"{total:.0f} Cr")
+    with col2:
+        st.metric('Max', f"{max_funding:.0f} Cr")
+    with col3:
+        st.metric('Avg', f"{round(avg_funding):.0f} Cr")
+    with col4:
+        st.metric('Funded Startups', num_startups)
+    
+    # Month-over-Month analysis section
+    st.header('MoM (Month-over-Month) Graph')
+
+    # Option to switch between total funding and count of deals in the trend graph
+    selected_option = st.selectbox('Select Type', ['Total', 'Count'])
+    
+    if selected_option == 'Total':
+        temp_df = df.groupby(['year', 'month'])['amount'].sum().reset_index()
+    else:
+        temp_df = df.groupby(['year', 'month'])['amount'].count().reset_index()
+    
+    # Prepare an x-axis label combining month and year for better readability
+    temp_df['x_axis'] = temp_df['month'].astype(str) + '-' + temp_df['year'].astype(str)
+
+    # Plot the MoM trend using matplotlib and display it in the app
+    fig, ax = plt.subplots()
+    ax.plot(temp_df['x_axis'], temp_df['amount'])
+    ax.set_xlabel('Month-Year')
+    ax.set_ylabel('Amount (in Cr)' if selected_option == 'Total' else 'Number of Fundings')
+    ax.set_title(f"Startup Funding {selected_option} (MoM)")
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    st.pyplot(fig)
+
+# Sidebar section for app navigation
+st.sidebar.title('Startup Funding Analysis')
+
+# Let the user select the dashboard section from the sidebar
+option = st.sidebar.selectbox('Select One', ['Overall Analysis', 'StartUp', 'Investor'])
+
+# Render different sections based on user selection
+if option == 'Overall Analysis':
+    load_overall_analysis()
+elif option == 'StartUp':
+    # Placeholder for startup-specific analysis
+    st.write("StartUp analysis will be implemented here.")
+elif option == 'Investor':
+    # Placeholder for investor-specific analysis
+    st.write("Investor analysis will be implemented here.")
+```
+
+---
+
