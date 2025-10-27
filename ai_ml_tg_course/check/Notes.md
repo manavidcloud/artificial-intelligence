@@ -5132,6 +5132,6 @@ elif option == 'Investor':
     # Placeholder for investor-specific analysis
     st.write("Investor analysis will be implemented here.")
 ```
-
+steamlit run appy.py
 ---
 
