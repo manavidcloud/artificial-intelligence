@@ -5135,3 +5135,372 @@ elif option == 'Investor':
 steamlit run appy.py
 ---
 
+# 📘 Day 13 – Nov 1, 2025
+
+## **Statistics – Part 1**
+
+---
+
+## 🧮 What is Statistics?
+
+**Statistics** is a branch of mathematics that involves **collecting, analyzing, interpreting, and presenting data**.
+It helps us understand and make decisions based on large datasets.
+
+### 🔹 Real-life Uses
+
+| Field                     | Example                                               |
+| ------------------------- | ----------------------------------------------------- |
+| **Business**              | Identify customer behaviour, forecast demand          |
+| **Medical**               | Evaluate new medicines, identify disease risk factors |
+| **Government & Politics** | Surveys, polling, election forecasting                |
+| **Environmental Science** | Climate data analysis, pollution monitoring           |
+
+---
+
+## 📊 Types of Statistics
+
+1. ### **Descriptive Statistics**
+
+   Focuses on **summarizing and describing** data features.
+
+   * Works on **historical/actual** data
+   * Example: Calculating average age of all employees in a company
+
+   ➤ *Measure of central tendency* (Mean, Median, Mode) falls under descriptive statistics.
+
+2. ### **Inferential Statistics**
+
+   Deals with **drawing conclusions and predictions** about a population using a **sample**.
+
+   * Works on **prediction or future analysis**
+   * Uses **probability theory** and **sampling**
+
+   **Example 1:**
+   From 140 crore people, you take a **sample of 10 crore** to estimate the **average income** of the population.
+
+   **Example 2:**
+   You have data of 1000 people consuming an average of 5GB data/month — used to **forecast future usage**.
+
+---
+
+## 👥 Population vs Sample
+
+| Term           | Description                                | Example                        |
+| -------------- | ------------------------------------------ | ------------------------------ |
+| **Population** | Entire group we want to study              | All students in India          |
+| **Sample**     | Subset of the population used for analysis | 500 randomly selected students |
+
+### ✅ Good Sampling Practices
+
+1. Adequate **Sample Size**
+2. **Random** selection
+3. **Representative** of population
+
+---
+
+## ⚖️ Parameter vs Statistic
+
+| Term          | Description                                              | Example             |
+| ------------- | -------------------------------------------------------- | ------------------- |
+| **Parameter** | A **numerical characteristic of a population** (unknown) | Population Mean (μ) |
+| **Statistic** | A **numerical characteristic of a sample**               | Sample Mean (x̄)    |
+
+Goal: Use sample statistics to **estimate population parameters.**
+
+---
+
+## 📚 Topics Under Inferential Statistics
+
+1. **Hypothesis Testing** – Test claims about population parameters
+2. **Confidence Intervals** – Estimate population range
+3. **ANOVA** – Compare means across multiple groups
+4. **Regression Analysis** – Predict one variable using others
+5. **Chi-Square Tests** – Check relationships between categorical variables
+6. **Sampling Techniques** – Ensure representative samples
+7. **Bayesian Statistics** – Update probabilities with new evidence
+
+---
+
+## 🔢 Types of Data
+
+```
+Types of Data
+│
+├── Categorical / Qualitative
+│   ├── Nominal  → No order (e.g., Male/Female)
+│   └── Ordinal  → Ordered (e.g., Good, Fair, Poor)
+│
+└── Numerical / Quantitative
+    ├── Discrete   → Whole numbers only (e.g., Number of children)
+    └── Continuous → Decimals allowed (e.g., Height = 5.8 ft)
+```
+
+---
+
+## 🎯 Measure of Central Tendency
+
+A **single representative value** that indicates the center of a dataset.
+
+### Types:
+
+1. **Mean**
+2. **Median**
+3. **Mode**
+4. **Weighted Mean**
+5. **Trimmed Mean**
+
+---
+
+### 1️⃣ Mean (Average)
+
+> The sum of all values divided by the number of values.
+
+#### 📘 Formulas:
+
+* **Population Mean (μ):**
+  [
+  \mu = \frac{\sum X}{N}
+  ]
+* **Sample Mean (x̄):**
+  [
+  \bar{X} = \frac{\sum X}{n}
+  ]
+
+**Example:**
+Data = 5, 10, 15
+[
+\bar{X} = \frac{5+10+15}{3} = 10
+]
+
+📎 **Outlier Example:**
+If 4 students got packages between 4–9 LPA and one got 45 LPA → 45 is an **outlier**, making the mean misleading.
+Hence, **median** is used.
+
+---
+
+### 2️⃣ Median
+
+> The **middle value** when data is arranged in order.
+
+**Example:**
+Data = 45, 5, 6, 7, 8, 10, 15
+Ordered → 5, 6, 7, 8, 10, 15, 45
+**Median = 8**
+
+If even count:
+Data = 1, 2, 3, 4, 5, 6, 7, 8
+[
+\text{Median} = \frac{4 + 5}{2} = 4.5
+]
+
+---
+
+### 3️⃣ Mode
+
+> The **most frequently occurring value** in a dataset.
+
+**Example 1:** 1, 1, 2, 3, 1, 4, 5, 6 → **Mode = 1**
+**Example 2:** 1, 1, 2, 3, 1, 4, 5, 2 → **Modes = 1 and 2**
+
+---
+
+### 4️⃣ Weighted Mean
+
+> Accounts for the **importance (weight)** of each value.
+
+**Formula:**
+[
+\bar{X}_w = \frac{\sum (w_i \times X_i)}{\sum w_i}
+]
+
+**Example:**
+
+| Model               | Weight | Mean Salary (LPA) |
+| ------------------- | ------ | ----------------- |
+| Linear Regression   | 0.2    | 10                |
+| Regression Analysis | 0.3    | 15                |
+| XGBoost             | 0.5    | 12                |
+
+[
+\bar{X}_w = \frac{(0.2×10) + (0.3×15) + (0.5×12)}{0.2+0.3+0.5} = \frac{12.5}{1} = 12.5
+]
+
+---
+
+### 5️⃣ Trimmed Mean
+
+> Calculated by **removing extreme values** (outliers) from both ends and averaging the rest.
+
+**Example:**
+Values: 20k, 22k, 23k, 25k, 28k, 30k, 32k, 35k, 50k, 80k
+Remove 10% from each end → (25k, 28k, 30k, 32k, 35k)
+[
+\text{Trimmed Mean} = 30,000
+]
+
+---
+
+## 📏 Measure of Dispersion
+
+Describes **how spread out** the data is.
+
+---
+
+### 1️⃣ Range
+
+> Difference between the **maximum and minimum** values.
+> [
+> \text{Range} = X_{\text{max}} - X_{\text{min}}
+> ]
+
+**Example:**
+Min = -5, Max = 5 → Range = 10
+
+---
+
+### 2️⃣ Variance
+
+> Average of **squared differences** from the mean.
+
+**Formulas:**
+
+* **Population Variance (σ²):**
+  [
+  \sigma^2 = \frac{\sum (X - \mu)^2}{N}
+  ]
+* **Sample Variance (s²):**
+  [
+  s^2 = \frac{\sum (X - \bar{X})^2}{n-1}
+  ]
+
+**Example:**
+Data = 3, 2, 1, 5, 4
+Mean = 3
+
+| X | X - Mean | (X - Mean)² |
+| - | -------- | ----------- |
+| 3 | 0        | 0           |
+| 2 | -1       | 1           |
+| 1 | -2       | 4           |
+| 5 | 2        | 4           |
+| 4 | 1        | 1           |
+
+[
+\text{Variance} = \frac{0+1+4+4+1}{5} = 2
+]
+
+---
+
+### 3️⃣ Standard Deviation
+
+> Square root of variance.
+
+[
+\sigma = \sqrt{\text{Variance}}
+]
+
+---
+
+### 4️⃣ Coefficient of Variation (CV)
+
+> Expresses variability relative to the mean.
+
+[
+CV = \left( \frac{\text{Standard Deviation}}{\text{Mean}} \right) \times 100%
+]
+
+---
+
+### 📊 Example (Finance Use Case)
+
+| Investment | Mean Return (μ) | Standard Deviation (σ) |
+| ---------- | --------------- | ---------------------- |
+| Stock A    | 10%             | 5%                     |
+| Stock B    | 5%              | 3%                     |
+
+[
+CV_A = \frac{5}{10} × 100 = 50%, \quad CV_B = \frac{3}{5} × 100 = 60%
+]
+
+✅ **Conclusion:** Stock A (CV=50%) offers **better risk-adjusted performance** than Stock B.
+
+---
+
+## 🧭 Example: Titanic Dataset
+
+| Age | Fare  |
+| --- | ----- |
+| 22  | 7.25  |
+| 38  | 71.28 |
+| 26  | 7.93  |
+| 35  | 53.10 |
+| 35  | 8.05  |
+|     | 8.46  |
+| 54  | 51.86 |
+| 2   | 21.07 |
+| 27  | 11.13 |
+| 14  | 30.07 |
+
+Formulas in Excel:
+
+```
+=STDEV.S(A2:A11)
+=AVERAGE(A2:A11)
+=STDEV.S(A2:A11)/AVERAGE(A2:A11)*100
+```
+
+---
+
+## 📈 Univariate Analysis
+
+Analyzing a **single variable**.
+
+| Type            | Description                  | Example      |
+| --------------- | ---------------------------- | ------------ |
+| **Categorical** | Frequency tables, pie charts | Gender, city |
+| **Numerical**   | Histograms, boxplots         | Age, income  |
+
+---
+
+### 📋 Frequency Distribution Example
+
+| Type of Vacation | Frequency | Relative Frequency | Cumulative Frequency |
+| ---------------- | --------- | ------------------ | -------------------- |
+| Beach            | 60        | 0.30               | 60                   |
+| City             | 40        | 0.20               | 100                  |
+| Adventure        | 30        | 0.15               | 130                  |
+| Nature           | 35        | 0.175              | 165                  |
+| Cruise           | 20        | 0.10               | 185                  |
+| Other            | 15        | 0.075              | 200                  |
+
+---
+
+## 📊 Shapes of Histogram
+
+| Shape                  | Description                 |
+| ---------------------- | --------------------------- |
+| **Symmetric (Normal)** | Values centered around mean |
+| **Bimodal/Trimodal**   | Two or three peaks          |
+| **Left Skewed**        | High marks (easy exam)      |
+| **Right Skewed**       | Low marks (tough exam)      |
+| **Uniform**            | Equal frequencies           |
+| **No Pattern**         | Irregular distribution      |
+
+---
+
+## 🧩 Categorical – Crosstab / Contingency Table
+
+Shows relationship between **two categorical variables**.
+
+| Survived \ Class | 1   | 2   | 3   | Total   |
+| ---------------- | --- | --- | --- | ------- |
+| 0 (Not Survived) | 80  | 97  | 372 | 549     |
+| 1 (Survived)     | 136 | 87  | 119 | 342     |
+| **Total**        | 216 | 184 | 491 | **891** |
+
+---
+
+
+
+---
+
