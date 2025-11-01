@@ -1481,7 +1481,7 @@ class Employee:
     '''This is an example Employee class.'''
     
     def __init__(self, id, nm, sal):
-        self.empID = id       # Instance variable
+        self.empID = id       #  This block is Instance variable or object level variable 
         self.name = nm
         self.salary = sal
     
