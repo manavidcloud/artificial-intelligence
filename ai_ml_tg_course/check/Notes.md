@@ -5137,6 +5137,39 @@ steamlit run appy.py
 
 # 📘 Day 13 – Nov 1, 2025
 
+- What is Statistics?
+- Types of Statistics
+- Population Vs Sample
+  - Inferential Statistics
+- Types of Data
+- Measure of Central Tendency
+  1. Mean
+  2. Median
+  3. Mode
+  4. Weighted Mean
+  5. Trimmed Mean
+- Measure of Dispersion
+  1. Range
+  2. Variance
+  3. Standard Deviation
+  4. Coefficient of Variation
+- Graphs for Univariate Analysis
+  1. Categorical - Frequency Distribution
+  2. Numerical - Frequency Distribution
+- Graphs for Bivariate Analysis
+  1. Categorical - Categorical
+  2. Numerical - Numerical
+  3. Categorical - Numerical
+- Quantiles and Percentiles
+- Five Number Summary
+- Box plots
+- Scatterplots
+- Covariance
+- Correlation
+- Correlation and Causation
+- Visualizing Multiple Variables
+
+
 ## **Statistics – Part 1**
 
 ---
