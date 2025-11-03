@@ -1664,7 +1664,7 @@ class Product:
         self.name = na 
         self.cost = co 
     
-    def set_cost(self,new_cost):
+    def set_cost(self,new_cost): # Setter method: the set value to instance variable
         if new_cost >= 0:
             self.cost = new_cost
     
@@ -1700,13 +1700,13 @@ class Product:
         self.name = na 
         self.cost = co 
     
-    def set_cost(self,new_cost):
+    def set_cost(self,new_cost): # set method: the set value to instance variable
         if new_cost >= 0:
             self.cost = new_cost
         else:
             print('Eorr: Invalid cost. please provide postivie value')
 
-    def get_cost(self):   # Getter Method
+    def get_cost(self):   # Getter Method: to get the value of a instance variables
         return self.cost        
     
     def show_product_info(self):
