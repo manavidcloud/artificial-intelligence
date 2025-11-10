@@ -1,10 +1,21 @@
-import matplotlib.pyplot as plt
+import pandas as pd
+import random
 
-data = [6, 213, 241, 260, 281, 290, 314, 321, 350, 1500]
+L = []
+for i in range(10000):
+    a = random.randint(1, 6)
+    L.append(a)
 
-plt.figure(figsize=(10, 6))
-plt.boxplot(data, vert=False)  # vert=False for horizontal box plot
-plt.xlabel('Values')
-plt.title('Box Plot')
-plt.grid(True, alpha=0.3)
-plt.show()
+len(L)
+
+L[:5]
+#output: [5, 1, 4, 6, 1]
+
+s = (pd.Series(L).value_counts() / pd.Series(L).value_counts().sum()).sort_index()
+# his line of code calculates the normalized frequency (i.e., empirical probability) of each unique value in list L, sorts the results by their index, and stores the result in variable s. This produces an empirical probability mass function for the values in L.
+
+print(s)
+
+
+# define the plot
+s.plot(kind='bar')
