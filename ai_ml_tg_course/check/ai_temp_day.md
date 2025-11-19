@@ -1,465 +1,284 @@
-Day 14 - AI/ML - Oct 9, 2025 - Scatterplots
-- Scatterplots is a linner one 
-- Basic sctter plots is for co relationship between two data set like plot price and size datasete
-
-## Covariance 
-###  What is covariance and how is it interpreted?
-
-Covariance is a statistical measure that describes the degree to which two variables are linearly related. It measures how much two variables change together, such that when one variable increases, does the other variable also increase, or does it decrease?
-
-If the covariance between two variables is positive, it means that the variables tend to move together in the same direction. If the covariance is negative, it means that the variables tend to move in opposite directions. A covariance of zero indicates that the variables are not linearly related.
+# Day 16 - AI/ML - Oct 16, 2025 - EDA of Titanic dataset
 
 
-x is nothing but the data point
+# Exploratory Data Analysis – Titanic Dataset
 
-x is incresing and y also incresing = coverince +ve
-x is incresing but y is decrying = coverince -ve
-x is incresing but y is ideal = converince is 0
+This notebook provides a clean and structured EDA with:
 
-• How is it calculated?
-
-|                 | Covariance Formula             |
-|-----------------|-------------------------------|
-| Population      | Sample                        |
-| --------------- | -----------------------------|
-| \(\sigma_{xy} = \frac{\sum (X - \mu_x)(Y - \mu_y)}{N}\) | \(s_{xy} = \frac{\sum (X - \bar{X})(Y - \bar{Y})}{n-1}\) |
-
-- \(X, Y\) – The value of \(X\) and \(Y\)
-- \(\mu_x, \mu_y\) – The population Mean of \(X\) and \(Y\)
-- \(\bar{X}, \bar{Y}\) – The sample Mean of \(X\) and \(Y\)
-- \(N\) – Total Number of population observations
-- \(n\) – Total Number of sample observations
-
-## Postive relationship of covariance 
-
-Now check cvariance (Positvie relation between two data set example)
-| Backlog (x) | Package (y) | X-X_mean | Y-Y_mean | (X-X_mean) * (Y-Y_mean) |
-|-------------|-------------|----------|----------|-------------------------|
-| 2           | 1           | -6       | -5       | 30                      |
-| 5           | 2           | -3       | -4       | 12                      |
-| 8           | 5           | 0        | -1       | 0                       |
-| 13          | 12          | 5        | 6        | 30                      |
-| 12          | 11          | 4        | 5        | 20                      |
-| **8**       | **6**       |          | **Sum**  | **86**                  |
-| X_Mean      | Y_Mean      |          |          |                         |
-
-Covariance = 86/4 (we have 5 number and as per forumula n-1 = 4) **21.5**
-
-
-Refrene Note: If our coverance output coming in 3 and 2 then most of time our coverince is positvle 
-
-when creating a chart 
-
-top left 1
-top right 2
-left bottom 3
-right bottom 4 
-
+- Dataset overview
+- Missing value analysis
+- Univariate analysis
+- Bivariate analysis
+- Correlation heatmap
 
 ```python
+import numpy as np
+import pandas as pd
 import seaborn as sns
-import pandas as pd
-import matplotlib.pyplot as plt
-import numpy as np
+import matplotlib.pyplot as plt 
 
-df = pd.DataFrame()
-x = pd.Series([12,25,68,42,113])
-y = pd.Series([11,29,58,121,100])
+df = pd.read_csv('./titanic/train.csv')
 
-df['x'] = x 
-df['y'] = y 
+df.head()
 
-print(df)
-
-
-
-fig, (ax1,ax2) = plt.subplots(1,2, figsize = (10,3))
-
-# Plot scatterplots on each axex
-ax1.scatter(df['x'],df['y'])
-ax2.scatter(df['x'],df['y'])
-
-ax1.set_title('Covariance = ' + str(np.cov(df['x'], df['y'])[0, 1]))
-ax2.set_title('Covariance = ' + str(np.cov(df['x'], df['y'])[0, 1]))
+'''
+# Output from reading the titanic csv
+| PassengerId | Survived | Pclass | Name                                              | Sex    | Age  | SibSp | Parch | Ticket        | Fare    | Cabin | Embarked |
+|-------------|----------|--------|---------------------------------------------------|--------|------|-------|-------|---------------|---------|-------|----------|
+| 1           | 0        | 3      | Braund, Mr. Owen Harris                           | male   | 22.0 | 1     | 0     | A/5 21171     | 7.2500  | NaN   | S        |
+| 2           | 1        | 1      | Cumings, Mrs. John Bradley (Florence Briggs Th...)| female | 38.0 | 1     | 0     | PC 17599      | 71.2833 | C85   | C        |
+| 3           | 1        | 3      | Heikkinen, Miss. Laina                            | female | 26.0 | 0     | 0     | STON/O2. 3101282 | 7.9250 | NaN   | S        |
+| 4           | 1        | 1      | Futrelle, Mrs. Jacques Heath (Lily May Peel)      | female | 35.0 | 1     | 0     | 113803        | 53.1000 | C123  | S        |
+| 5           | 0        | 3      | Allen, Mr. William Henry                          | male   | 35.0 | 0     | 0     | 373450        | 8.0500  | NaN   | S        |
+'''
 ```
 
+### Why do EDA
+
+- Model building
+- Analysis and reporting
+- Validate assumptions
+- Handling missing values
+- Feature engineering
+- Detecting outliers
 
 
-## Negative relationship of covariance 
-Now check cvariance (Negative relation between two data set example)
+### Column Types
 
-| Backlog (x) | Package (y) | X-X_mean | Y-Y_mean | (X-X_mean) * (Y-Y_mean) |
-|-------------|-------------|----------|----------|-------------------------|
-| 2           | 10          | -6       | 4        | -24                     |
-| 5           | 12          | -3       | 6        | -18                     |
-| 8           | 5           | 0        | -1       | 0                       |
-| 12          | 2           | 4        | -4       | -16                     |
-| 13          | 1           | 5        | -5       | -25                     |
-| **8**       | **6**       |          | **Sum**  | **-83**                 |
-| X_Mean      | Y_Mean      |          |          |                         |
+- **Numerical** – Age, Fare, PassengerId
+- **Categorical** – Survived, Pclass, Sex, SibSp(Siblings_with spouse), Parch(Parent_child), Embarked(from where they started)
+- **Mixed** – Name, Ticket, Cabin
 
-Covariance = **-20.75**
+
+Categorical: we can catoriges these, like male and feamle as per sex
+
+
+Mixed data type: we have 100, people with there name we can't categorical then its comes under mixed one but you can catorigzed as per their mark.
+
+
+### Univariate Analysis
+
+Univariate analysis focuses on analyzing each feature in the dataset independently.
+
+- **Distribution analysis:** The distribution of each feature is examined to identify its shape, central tendency, and dispersion.
+- **Identifying potential issues:** Univariate analysis helps in identifying potential problems with the data such as outliers, skewness, and missing values.
+
+# distribution
+The shape of a data distribution refers to its overall pattern or form as it is represented on a graph. Some common shapes of data distributions include:
+
+- **Normal Distribution:** A symmetrical and bell-shaped distribution where the mean, median, and mode are equal and the majority of the data falls in the middle of the distribution with gradually decreasing frequencies towards the tails.
+- **Skewed Distribution:** A distribution that is not symmetrical, with one tail being longer than the other. It can be either positively skewed (right-skewed) or negatively skewed (left-skewed).
+- **Bimodal Distribution:** A distribution with two peaks or modes.
+- **Uniform Distribution:** A distribution where all values have an equal chance of occurring.
+
+The shape of the data distribution is important in identifying the presence of outliers, skewness, and the type of statistical tests and models that can be used for further analysis.
+
+# Dispersion
+**Dispersion** is a statistical term used to describe the spread or variability of a set of data. It measures how far the values in a data set are spread out from the central tendency (mean, median, or mode) of the data.
+
+There are several measures of dispersion, including:
+
+- **Range:** The difference between the largest and smallest values in a data set.
+- **Variance:** The average of the squared deviations of each value from the mean of the data set.
+- **Standard Deviation:** The square root of the variance. It provides a measure of the spread of the data that is in the same units as the original data.
+- **Interquartile range (IQR):** The range between the first quartile (25th percentile) and the third quartile (75th percentile) of the data.
+
+Dispersion helps to describe the spread of the data, which can help to identify the presence of outliers and skewness in the data.
+
+
+
+Here is the Markdown transcription of the content from your provided image:
+
+***
+
+### Steps of doing Univariate Analysis on Numerical columns
+
+- **Descriptive Statistics:** Compute basic summary statistics for the column, such as mean, median, mode, standard deviation, range, and quartiles. These statistics give a general understanding of the distribution of the data and can help identify skewness or outliers.
+
+- **Visualizations:** Create visualizations to explore the distribution of the data. Some common visualizations for numerical data include histograms, box plots, and density plots. These visualizations provide a visual representation of the distribution of the data and can help identify skewness and outliers.
+
+- **Identifying Outliers:** Identify and examine any outliers in the data. Outliers can be identified using visualizations. It is important to determine whether the outliers are due to measurement errors, data entry errors, or legitimate differences in the data, and to decide whether to include or exclude them from the analysis.
+
+- **Skewness:** Check for skewness in the data and consider transforming the data or using robust statistical methods that are less sensitive to skewness, if necessary.
+
+- **Conclusion:** Summarize the findings of the EDA and make decisions about how to proceed with further analysis.
+
+# Age
+conclusions: here we are using descfriptive stats
 
 ```python
-import seaborn as sns
-import pandas as pd
-import matplotlib.pyplot as plt
-import numpy as np
-
-df = pd.DataFrame()
-x = pd.Series([2, 5, 8, 12, 13])
-y = pd.Series([1, 2, 5, 12, 10])
-
-df['x'] = x
-df['y'] = y
-
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 3))
-
-# Plot scatterplots on each axis
-ax1.scatter(df['x'], df['y'])
-ax2.scatter(df['x'], df['y'])
-
-ax1.set_title('Covariance = ' + str(np.cov(df['x'], df['y'])[0, 1]))
-ax2.set_title('Covariance = ' + str(np.cov(df['x'], df['y'])[0, 1]))
-```
-
-
-
-## No relationship of covariance 
-Now check cvariance (Zero relation between two data set example)
-| Backlog (x) | Package (y) | X-X_mean | Y-Y_mean | (X-X_mean) * (Y-Y_mean) |
-|-------------|-------------|----------|----------|-------------------------|
-| 2           | 10          | -6       | 0        | 0                       |
-| 5           | 10          | -3       | 0        | 0                       |
-| 8           | 10          | 0        | 0        | 0                       |
-| 12          | 10          | 4        | 0        | 0                       |
-| 13          | 10          | 5        | 0        | 0                       |
-| **8**       | **10**      |          | **Sum**  | **0**                   |
-| X_Mean      | Y_Mean      |          |          |                         |
-
-Covariance = **0**
-
-• Disadvantages of using Covariance
-
-One limitation of covariance is that it does not tell us about the strength of the relationship between two variables, since the magnitude of covariance is affected by the scale of the variables.
-
-• Covariance of a variable with itself
-
-**Real-world example of covariance:**
-
-**Ice Cream Sales and Temperature**
-Imagine you own an ice cream shop and track daily sales alongside the temperature. You notice:
-- On hot days (high temperature), ice cream sales are high
-- On cold days (low temperature), ice cream sales are low
-
-The covariance between temperature and ice cream sales would be **positive** because both variables tend to move in the same direction together.
-
-**Why this matters:**
-1. **Inventory planning** - If you know hot weather is forecasted, you can stock more ice cream
-2. **Staffing decisions** - Schedule more employees during predicted hot periods
-3. **Marketing timing** - Launch promotions when temperature patterns suggest lower sales
-
-
-===
-
-**Another example: Stock Portfolio Management**
-
-Investment managers use covariance constantly:
-
-If Stock A (tech company) and Stock B (another tech company) have positive covariance, they tend to rise and fall together.
-
-If Stock A (airline) and Stock B (oil company) have negative covariance, when oil prices rise (Stock B up), airline costs increase and their stock might fall (Stock A down).
-
-**Portfolio benefit:** By combining stocks with low or negative covariance, you can reduce overall risk - when one investment drops, another might rise, balancing your returns.
-
-===
-
-# Correlation
-
-### What is correlation?
-
-Correlation refers to a statistical relationship between two or more variables. Specifically, it measures the degree to which two variables are related and how they tend to change together.
-
-Correlation is often measured using a statistical tool called the correlation coefficient, which ranges from -1 to 1. A correlation coefficient of -1 indicates a perfect negative correlation, a correlation coefficient of 0 indicates no correlation, and a correlation coefficient of 1 indicates a perfect positive correlation.
-
-Formula
-
-\[
-\text{Correlation} = \frac{\text{Cov}(x,y)}{\sigma_x * \sigma_y}
-\]
-
-
-\[
-r = \frac{\sum (x - m_x)(y - m_y)}{\sqrt{\sum (x - m_x)^2 \sum (y - m_y)^2}}
-\]
-
-**Example**
-
-If studying hours (X) and test scores (Y):
-- Covariance might be 15 (hard to interpret)
-- But r = 0.85 clearly shows a strong positive relationship
-
-**Key point:** Correlation is just *standardized* covariance, making it easier to interpret and compare!
-
+df['Age'].describe()
+'''
+count    714.000000
+mean      29.699118
+std       14.526497
+min        0.420000
+25%       20.125000
+50%       28.000000
+75%       38.000000
+max       80.000000
+Name: Age, dtype: float64
+'''
 
 ```python
-import seaborn as sns
-import pandas as pd
-import matplotlib.pyplot as plt
-import numpy as np
 
-# Create data
-x = pd.Series([2, 5, 8, 12, 13])
-y = pd.Series([1, 2, 5, 12, 10])
+df['Age'].plot(kind='hist', bins=20)
 
-# Combine into a DataFrame
-df = pd.DataFrame({'x': x, 'y': y})
+'''
+<Axes: ylabel='Frequency'>
 
-# Create two subplots side by side
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 3))
+'''
 
-# Plot scatterplots
-ax1.scatter(df['x'], df['x'], color='steelblue')
-ax2.scatter(df['x'], df['y'], color='darkorange')
+df['Age'].plot(kind='kde') # kernel desimal estimate
 
-# Compute correlations
-corr_xx = df['x'].corr(df['x'])
-corr_xy = df['x'].corr(df['y'])
+'''
+<Axes: ylabel='Density'>
 
-# Set titles with formatted correlation values
-ax1.set_title(f"Correlation = {corr_xx:.2f}")
-ax2.set_title(f"Correlation = {corr_xy:.2f}")
+'''
+df['Age'].skew()
 
-# Add axis labels
-ax1.set_xlabel('x')
-ax1.set_ylabel('x')
+'''
+np.flot64(0.3891077)
+'''
 
-ax2.set_xlabel('x')
-ax2.set_ylabel('y')
+df['Fare'].plot(kind='kde')
 
-# Improve layout and display
-plt.tight_layout()
-plt.show()
+
+df['Age'].plot(kind='box')
+
+df['Age'].describe()
 ```
----
 
-# Correlation and Causation
+# now check how many comes in outliers
 
-The phrase "correlation does not imply causation" means that just because two variables are associated with each other, it does not necessarily mean that one causes the other. In other words, a correlation between two variables does not necessarily imply that one variable is the reason for the other variable's behaviour.
 
-Suppose there is a positive correlation between the number of firefighters present at a fire and the amount of damage caused by the fire. One might be tempted to conclude that the presence of firefighters causes more damage. However, this correlation could be explained by a third variable - the severity of the fire. More severe fires might require more firefighters to be present, and also cause more damage.
 
-Thus, while correlations can provide valuable insights into how different variables are related, they cannot be used to establish causality. Establishing causality often requires additional evidence such as experiments, randomized controlled trials, or well-designed observational studies.
+# Now check dataset with fare
 
-ex: when icream is more sell happening, more deth is happedning or murder are happedning. but this not shows the relation between two different values deth may cause because of different factors. Hence report will generate in wrong way. 
+#df['Fare'].plot(kind=) 
 
+### Steps of doing Univariate Analysis on Categorical columns
 
-# Random variables 
+**Descriptive Statistics:** Compute the frequency distribution of the categories in the column. This will give a general understanding of the distribution of the categories and their relative frequencies.
 
-what are algerbic varaible 
+**Visualizations:** Create visualizations to explore the distribution of the categories. Some common visualizations for categorical data include count plots and pie charts. These visualizations provide a visual representation of the distribution of the categories and can help identify any patterns or anomalies in the data.
 
-In algerbra a variable like x is an unknow value
+**Missing Values:** Check for missing values in the data and decide how to handle them. Missing values can be imputed or excluded from the analysis, depending on the research question and the data set.
 
-x + 5 = 10 
-x = 5
+**Conclusion:** Summarize the findings of the EDA and make decisions about how to proceed with further analysis.
 
-what are random variable in starts?
 
-types of random variables 
-1. Discrite random variables
-- head, tail
-- 1,2,3,4,5,6 in dice
 
-2. continous random varaible 
-- check student with height 5.67 or 6.25 or 
-- random values with floting or without floating
 
+# worked on serviceral
+```python
 
-# Probability Distributions
-What are orbality disctributions?
-- A probability disctribution is a list of all of the possible outcomes of a random variable along with their corresponing probability values.
+df['Survived'].describe()
+df['Survived'].value_counts() # getting total counts of survived
 
-ex1: coin toss
+df['Survived'].value_counts().plot(kind='bar') # virutalisation 
 
-coin toss   head)1) tail(0)
+df['Survived'].value_counts().plot(kind='pie',autopct="%0.1f%%") # getting percentage 
 
-p1             1/2      1/2
 
+# servuval - onpplass (top class from dataset )
+df['Pclass'].describe()
+df['Plass'].value_counts() # getting total counts of pclass (first class)
 
+df['Plass'].value_counts().plot(kind='bar') # virutalisation 
 
-ex2: Dice
+df['Plass'].value_counts().plot(kind='pie',autopct="%0.1f%%") # getting percentage 
 
+#Do the same as per sex(male,female), Sibsp, pach (parent-child)
 
-Dice        1   2   3   4   5   6
-Probability 1/6 1/6 1/6 1/6 1/6 1/6
+df['sex'].value_counts()                    # Get the frequency count of each category in 'sex' column
+df['sex'].value_counts().plot(kind='bar')   # Plot a bar chart of category frequencies in 'sex' column
+df['sex'].value_counts().plot(kind='pie', autopct='%0.1f%%') # Plot a pie chart of category frequencies in 'sex' with percentage labels
 
-ex3: two dice roll
-probalbity disctuoins table for two dice 
 
-**Problem with Distribution?**
+df['Sibsp'].value_counts()                    # Get the frequency count of each category in 'Sibsp' column
+df['Sibsp'].value_counts().plot(kind='bar')   # Plot a bar chart of category frequencies in 'Sibsp' column
+df['Sibsp'].value_counts().plot(kind='pie', autopct='%0.1f%%') # Plot a pie chart of category frequencies in 'Sibsp' with percentage labels
 
-In many scenarios, the number of outcomes can be much larger and hence a table would be tedious to write down. Worse still, the number of possible outcomes could be infinite, in which case, good luck writing a table for that.
 
-Example - Height of people, Rolling 10 dice together
+df['Parch'].value_counts()                    # Get the frequency count of each category in 'Parch' column
+df['Parch'].value_counts().plot(kind='bar')   # Plot a bar chart of category frequencies in 'Parch' column
+df['Parch'].value_counts().plot(kind='pie', autopct='%0.1f%%') # Plot a pie chart of category frequencies in 'Parch' with percentage labels
 
-Solution - Function?
 
-What if we use a mathematical function to model the relationship between outcome and probability?
 
+```
 
-Note: a lot of time probability discturion and probabiltiy disctribution funcats are used interchangebly
+### Embarked
 
-
-
-Why are Probability Distributions important?
-- Gives an idea about the shape/distribution of the data.
-- And if our data follows a famous distribution then we automatically know a lot about the data.
-
-A note on Parameters
-
-Parameters in probability distributions are numerical values that determine the shape, location, and scale of the distribution.
-
-Different probability distributions have different sets of parameters that determine their shape and characteristics, and understanding these parameters is essential in statistical analysis and inference.
-
-
-# Probability Distribution Functions
-
-1. PMF (Probability Mass Functions)
-2. PDF (Probability Distribution Functions)
-3. CDF Probability Cumulative Distributive Functions()
-
-A probability distribution function (PDF) is a mathematical function that describes the probability of obtaining different values of a random variable in a particular probability distribution.
-
-
-1. PMF (Probability Mass Functions)
-
-PMF stands for Probability Mass Function. It is a mathematical function that describes the probability distribution of a **discrete random variable**.
-
-The PMF of a discrete random variable assigns a probability to each possible value of the random variable. The probabilities assigned by the PMF must satisfy two conditions:
-
-a. The probability assigned to each value must be non-negative (i.e., greater than or equal to zero).
-b. The sum of the probabilities assigned to all possible values must equal 1.
-
-
-ex1: Dice
-
-        1       2       3       4       5       6
-        1/6     1/6     1/6     1/6     1/6     1/6
-
-
-as every number is coming only at once
-
- =      1       1       1       1       1       1
-        /6      /6      /6      /6      /6      /6
-
-
-=       6/6     = 1
-
-
-Tow dice ( its comes under the PMF)
-
-
-    1       1       1       1       1       1
-    1/36    1/36    1/36    1/36    1/36    1/36
-
-
-
-# Cumulative Distribution Function (CDF) of PMF
-
-The cumulative distribution function (CDF) F(x) describes the probability that a random variable X with a given probability distribution will be found at a value less than or equal to x.
-
-F(x) = P(X <= x)
-
+- Southampton
+- Queenstown
+- Cherbourg
 
 ```python
-import pandas as pd
-import random
-
-L = []
-for i in range(10000):
-    a = random.randint(1, 6)
-    L.append(a)
-
-len(L)
-
-L[:5]
-#output: [5, 1, 4, 6, 1]
-
-s = (pd.Series(L).value_counts() / pd.Series(L).value_counts().sum()).sort_index()
-# his line of code calculates the normalized frequency (i.e., empirical probability) of each unique value in list L, sorts the results by their index, and stores the result in variable s. This produces an empirical probability mass function for the values in L.
-
-print(s)
 
 
-# define the plot
-s.plot(kind='bar')
+df['Embarked'].value_counts()                    # Get the frequency count of each category in 'Embarked' column
+df['Embarked'].value_counts().plot(kind='bar')   # Plot a bar chart of category frequencies in 'Embarked' column
+df['Embarked'].value_counts().plot(kind='pie', autopct='%0.1f%%') # Plot a pie chart of category frequencies in 'Embarked' with percentage labels
+
+df['Embarked'].isnull                    # checking null value where we don't know location from they started
+```
+
+####
+```python
+
+pd.crosstab(df['Pclass'], df['Embarked'], normalize='columns')*100
+```
+
+# survived and age
+```python
+df[df['Survived'] == 1]['Age'].plot(kind='kde', label='Survived')        # Plot KDE for 'Age' column where passengers survived
+df[df['Survived'] == 0]['Age'].plot(kind='kde', label='Not Survived')    # Plot KDE for 'Age' column where passengers did not survive
+
+plt.legend()    # Show legend for Survived/Not Survived curves
+plt.show()      # Display the plot
+```
+
+# mean value who is traveling in third class
+```python
+df[df['Pclass'] == 2]['Age'].mean()    # Calculate the mean age of passengers in class 2
+```
+
+
+# Feature engineering on Fare col
+```python
+df['SibSp'].value_counts()    # Display the frequency count of each value in the 'SibSp' column (number of siblings/spouses aboard)
 
 ```
----
 
+## 
+```python
+df[['individual_fare', 'Fare']].describe()    # Show summary statistics for 'individual_fare' and 'Fare' columns in the df2 DataFrame
+```
 
-Work with Two dice
+#### family_type
+# 1 -> alone
+# 2-4 -> small
+# >5 -> large
 
 ```python
-import pandas as pd
-import random
+def transform_family_size(num):               # Define a function to classify family size
+    if num == 1:
+        return 'alone'                       # Single person classified as 'alone'
+    elif num > 1 and num < 5:
+        return 'small'                       # Family size of 2 to 4 classified as 'small'
+    else:
+        return 'large'                       # Family size of 5 or more classified as 'large'
 
-L = []
-for i in range(10000):
-    a = random.randint(1, 6)
-    b = random.randint(1, 6)
-    L.append(a + b)
+df['family_type'] = df['family_size'].apply(transform_family_size)   # Apply classification to each row in 'family_size', store result in 'family_type'
 
-L[:5]
-# [8, 8, 6, 11, 9]
-
-s = (pd.Series(L).value_counts() / pd.Series(L).value_counts().sum()).sort_index()
-
-# define the plot
-s.plot(kind='bar')
+pd.crosstab(df2['Survived'], df2['family_type'], normalize='columns') * 100
 
 ```
-
-CDF example
-
-```python
-import numpy as np
-import pandas as pd
-import random
-
-np.cumsum(s)
-
-L = []
-for i in range(10000):
-    a = random.randint(1, 6)
-    b = random.randint(1, 6)
-    L.append(a + b)
-
-L[:5]
-# [8, 8, 6, 11, 9]
-
-s2 = np.cumsum(s)
-s2 = (pd.Series(L).value_counts() / pd.Series(L).value_counts().sum()).sort_index()
-
-# define the plot
-s2.plot(kind='bar')
-
-
-print(s)
-print(s2)
-
-
-```
-
-cumsum(): Cumalative sum
-- 
-Dataset         cumatlative sum
-10              10
-20              30
-5               35
-10              45
-30              75
-
-
-
+### cabin 
+df2['Cabin'].isnull().sum()/len(df2['Cabin'])
+df2['Cabin']
+df2['Cabin'].fillna('M',inplace=True)
+df2['Cabin'].value_counts()
 

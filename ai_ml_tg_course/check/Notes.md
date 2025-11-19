@@ -4640,7 +4640,7 @@ print(movies['Star1'].value_counts())
 
 ***
 
-### Using `merge` for Data Combination
+### Using `merge` for Data Combination - Mergeing in panda
 
 Joining DataFrames horizontally (by columns):
 
