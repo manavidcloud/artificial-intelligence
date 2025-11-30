@@ -1,284 +1,383 @@
-# Day 16 - AI/ML - Oct 16, 2025 - EDA of Titanic dataset
+# Day 17 - AI/ML - Nov 22, 2025 - PDF an dCDF in data science 
 
+How to use PDF in Data Science
+Saturday, November 22, 2025 8:01 AM
 
-# Exploratory Data Analysis – Titanic Dataset
+Use the IRIS dataset (150 flower samples).
 
-This notebook provides a clean and structured EDA with:
+It is a Machine Learning (ML) problem.
 
-- Dataset overview
-- Missing value analysis
-- Univariate analysis
-- Bivariate analysis
-- Correlation heatmap
+We need to predict the flower type using the following features:
+
+Sepal Length, Sepal Width, Petal Length, and Petal Width.
+
+Species : Setosa, Versicolor, Virginica
+
+Feature selection is required to build an accurate prediction model.
+
+We should use only the features that help in prediction and remove the features that do not contribute to the prediction.
+
+The PDF will help us perform feature selection.
 
 ```python
-import numpy as np
-import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt 
-
-df = pd.read_csv('./titanic/train.csv')
-
+import seaborn as sns 
+df = sns.load_dataset('iris')
 df.head()
 
-'''
-# Output from reading the titanic csv
-| PassengerId | Survived | Pclass | Name                                              | Sex    | Age  | SibSp | Parch | Ticket        | Fare    | Cabin | Embarked |
-|-------------|----------|--------|---------------------------------------------------|--------|------|-------|-------|---------------|---------|-------|----------|
-| 1           | 0        | 3      | Braund, Mr. Owen Harris                           | male   | 22.0 | 1     | 0     | A/5 21171     | 7.2500  | NaN   | S        |
-| 2           | 1        | 1      | Cumings, Mrs. John Bradley (Florence Briggs Th...)| female | 38.0 | 1     | 0     | PC 17599      | 71.2833 | C85   | C        |
-| 3           | 1        | 3      | Heikkinen, Miss. Laina                            | female | 26.0 | 0     | 0     | STON/O2. 3101282 | 7.9250 | NaN   | S        |
-| 4           | 1        | 1      | Futrelle, Mrs. Jacques Heath (Lily May Peel)      | female | 35.0 | 1     | 0     | 113803        | 53.1000 | C123  | S        |
-| 5           | 0        | 3      | Allen, Mr. William Henry                          | male   | 35.0 | 0     | 0     | 373450        | 8.0500  | NaN   | S        |
-'''
+# Display unique species in the DataFrame
+df['species'].unique()
+# Output:
+# array(['setosa', 'versicolor', 'virginica'], dtype=object)
+
+# Kernel density estimation plot of sepal length
+sns.kdeplot(data=df, x='sepal_length')
+# <Axes: xlabel='sepal_length', ylabel='Density'>
+
+sns.kdeplot(data=df, x='petal_length')
+# <Axes: xlabel='petal_length', ylabel='Density'>
+
+sns.kdeplot(data=df, x='petal_width')
+# <Axes: xlabel='petal_width', ylabel='Density'>
+
+# KDE plot by species for sepal length (using hue)
+sns.kdeplot(data=df, x='sepal_length', hue='species')
+# <Axes: xlabel='sepal_length', ylabel='Density'>
+
+# KDE plot by species for petal length
+sns.kdeplot(data=df, x='petal_length', hue='species')
+
+# KDE plot by species for petal width
+sns.kdeplot(data=df, x='petal_width', hue='species')
+
+
 ```
+---
+kdeplot - represent pdf
+ecdfplot - represent cdf
 
-### Why do EDA
+# CDF 
+sns.kdeplot(data=df, x='petal_width', hue='species')
+sns.ecdfplot(data=df, x='petal_width', hue='species')
 
-- Model building
-- Analysis and reporting
-- Validate assumptions
-- Handling missing values
-- Feature engineering
-- Detecting outliers
-
-
-### Column Types
-
-- **Numerical** – Age, Fare, PassengerId
-- **Categorical** – Survived, Pclass, Sex, SibSp(Siblings_with spouse), Parch(Parent_child), Embarked(from where they started)
-- **Mixed** – Name, Ticket, Cabin
-
-
-Categorical: we can catoriges these, like male and feamle as per sex
-
-
-Mixed data type: we have 100, people with there name we can't categorical then its comes under mixed one but you can catorigzed as per their mark.
-
-
-### Univariate Analysis
-
-Univariate analysis focuses on analyzing each feature in the dataset independently.
-
-- **Distribution analysis:** The distribution of each feature is examined to identify its shape, central tendency, and dispersion.
-- **Identifying potential issues:** Univariate analysis helps in identifying potential problems with the data such as outliers, skewness, and missing values.
-
-# distribution
-The shape of a data distribution refers to its overall pattern or form as it is represented on a graph. Some common shapes of data distributions include:
-
-- **Normal Distribution:** A symmetrical and bell-shaped distribution where the mean, median, and mode are equal and the majority of the data falls in the middle of the distribution with gradually decreasing frequencies towards the tails.
-- **Skewed Distribution:** A distribution that is not symmetrical, with one tail being longer than the other. It can be either positively skewed (right-skewed) or negatively skewed (left-skewed).
-- **Bimodal Distribution:** A distribution with two peaks or modes.
-- **Uniform Distribution:** A distribution where all values have an equal chance of occurring.
-
-The shape of the data distribution is important in identifying the presence of outliers, skewness, and the type of statistical tests and models that can be used for further analysis.
-
-# Dispersion
-**Dispersion** is a statistical term used to describe the spread or variability of a set of data. It measures how far the values in a data set are spread out from the central tendency (mean, median, or mode) of the data.
-
-There are several measures of dispersion, including:
-
-- **Range:** The difference between the largest and smallest values in a data set.
-- **Variance:** The average of the squared deviations of each value from the mean of the data set.
-- **Standard Deviation:** The square root of the variance. It provides a measure of the spread of the data that is in the same units as the original data.
-- **Interquartile range (IQR):** The range between the first quartile (25th percentile) and the third quartile (75th percentile) of the data.
-
-Dispersion helps to describe the spread of the data, which can help to identify the presence of outliers and skewness in the data.
+I have number like 1, 2,3,4,5,4,2,1 then this is PDF 
+but cdf will do like 1, 1+2 = 3, 3+3 = 6, 6+4=10
 
 
 
-Here is the Markdown transcription of the content from your provided image:
+### 2D Density Plots - this is also called contor plot where we use the tow different plots
+
+sns.jointplot(
+    data=df, 
+    x='petal_length', 
+    y='sepal_length', 
+    kind='kde', 
+    fill=True, 
+    cbar=True
+)
+
+
+## Poisson Distribution
+
+*Saturday, November 15, 2025   8:01 AM*
 
 ***
 
-### Steps of doing Univariate Analysis on Numerical columns
+The **Poisson Distribution** is a **probability distribution** used to model the number of times an event occurs **within a fixed interval of time, space, or area**, when:
 
-- **Descriptive Statistics:** Compute basic summary statistics for the column, such as mean, median, mode, standard deviation, range, and quartiles. These statistics give a general understanding of the distribution of the data and can help identify skewness or outliers.
+- The events occur **independently**
+- The average rate of occurrence (λ – lambda) is **constant**
+- Two events **cannot happen at the same time**
 
-- **Visualizations:** Create visualizations to explore the distribution of the data. Some common visualizations for numerical data include histograms, box plots, and density plots. These visualizations provide a visual representation of the distribution of the data and can help identify skewness and outliers.
+***
 
-- **Identifying Outliers:** Identify and examine any outliers in the data. Outliers can be identified using visualizations. It is important to determine whether the outliers are due to measurement errors, data entry errors, or legitimate differences in the data, and to decide whether to include or exclude them from the analysis.
+Here is the transcribed content from your image, formatted in Markdown:
 
-- **Skewness:** Check for skewness in the data and consider transforming the data or using robust statistical methods that are less sensitive to skewness, if necessary.
+***
 
-- **Conclusion:** Summarize the findings of the EDA and make decisions about how to proceed with further analysis.
+## Poisson Distribution
 
-# Age
-conclusions: here we are using descfriptive stats
+The Poisson Distribution is a probability distribution used to model the number of times an event occurs within a fixed interval of time, space, or area, when:
+
+- ✔️ The events occur **independently**
+- ✔️ The average rate of occurrence (λ – lambda) is **constant**
+- ✔️ Two events **cannot happen at the same time**
+
+***
+
+**The Poisson Distribution is a probability distribution** used to model the number of times an event occurs **within a fixed interval of time, space, or area**, when:
+
+- The events occur **independently**
+- The average rate of occurrence (λ – lambda) is **constant**
+- Two events **cannot happen at the same time**
+
+***
+
+
+### Real-Life Scenario            | Event Counted
+----------------------------------|-----------------
+Number of phone calls received in an hour       | Calls
+Number of road accidents in a city per day      | Accidents
+Number of defects in a manufacturing batch      | Defects
+Number of messages you get per minute           | Messages
+Number of customers arriving at a shop per hour | Customers
+
+
+The horizontal axis is the index \( k \), the number of occurrences.  
+\( \lambda \) is the expected rate of occurrences.  
+The vertical axis is the probability of \( k \) occurrences given \( \lambda \). The function is defined only at integer values of \( k \); the connecting lines are only guides for the eye.
 
 ```python
-df['Age'].describe()
+import pandas as pd 
+import numpy as np 
+import matplotlib.pyplot as plt
+import math
+data = pd.read_csv('CallCenter.csv')
+data
 '''
-count    714.000000
-mean      29.699118
-std       14.526497
-min        0.420000
-25%       20.125000
-50%       28.000000
-75%       38.000000
-max       80.000000
-Name: Age, dtype: float64
-'''
-
-```python
-
-df['Age'].plot(kind='hist', bins=20)
-
-'''
-<Axes: ylabel='Frequency'>
-
+|    | Call_ID | Call_Time                 | Call_Duration_sec | Agent_ID | Customer_ID | Issue_Type | Resolution_Status | Wait_Time_sec |
+|----|---------|--------------------------|-------------------|----------|-------------|------------|-------------------|--------------|
+| 0  | 1       | 2025-02-15 09:00:32.007593 | 535               | 1003     | 2026        | Billing    | Escalated         | 105          |
+| 1  | 2       | 2025-02-15 09:01:07.362849 | 136               | 1012     | 2001        | Billing    | Escalated         | 51           |
+| 2  | 3       | 2025-02-15
 '''
 
-df['Age'].plot(kind='kde') # kernel desimal estimate
+# check hours based data
+data['Hour'] = data['Call_time'].dt.hour
+
+data.info()
+data['Call_Time'] = pd['Call_Time'].astype('datetime')
+
+
+
+# group by calls per hours now 
+call_per_hours = data.groupby('Hour')['Call_ID'].count()
+call_per_hours
 
 '''
-<Axes: ylabel='Density'>
+Hour
+9   61
+10  50
+11  28
+12  29
+'''
+# gettting lambad mean value - average envts (lambda)
+lambda_val = call_per_hours.mean()
+lambda_val
+'''
+np.flat64(50.0)
+'''
+# now get the probolty using pmf function 
+
+k = 30 # number of evenrt we want probabiltiy for 
+'''
+use pmf formula - # Poisson formula: P(X = k) = (e^-λ * λ^k) / k!
 
 '''
-df['Age'].skew()
+
+probability = (math.exp(-lambda_val) * (lambda_val ** k)) / math.factorial[k]
+probability
 
 '''
-np.flot64(0.3891077)
+np.flot64(0.000)
 '''
 
-df['Fare'].plot(kind='kde')
 
+# example 2 -
+# Poisson formula: P(X=k) = (e^-λ * λ^k) / k!
 
-df['Age'].plot(kind='box')
+k = 50  # number of events we want probability for
+probability = (math.exp(-lambda_val) * (lambda_val ** k)) / math.factorial(k)
+print(f"Probability of {k} events occuring (lambda_val = {lambda_val} : {probability:.4f})")
 
-df['Age'].describe()
+'''
+Output:
 ```
-
-# now check how many comes in outliers
-
-
-
-# Now check dataset with fare
-
-#df['Fare'].plot(kind=) 
-
-### Steps of doing Univariate Analysis on Categorical columns
-
-**Descriptive Statistics:** Compute the frequency distribution of the categories in the column. This will give a general understanding of the distribution of the categories and their relative frequencies.
-
-**Visualizations:** Create visualizations to explore the distribution of the categories. Some common visualizations for categorical data include count plots and pie charts. These visualizations provide a visual representation of the distribution of the categories and can help identify any patterns or anomalies in the data.
-
-**Missing Values:** Check for missing values in the data and decide how to handle them. Missing values can be imputed or excluded from the analysis, depending on the research question and the data set.
-
-**Conclusion:** Summarize the findings of the EDA and make decisions about how to proceed with further analysis.
-
-
-
-
-# worked on serviceral
-```python
-
-df['Survived'].describe()
-df['Survived'].value_counts() # getting total counts of survived
-
-df['Survived'].value_counts().plot(kind='bar') # virutalisation 
-
-df['Survived'].value_counts().plot(kind='pie',autopct="%0.1f%%") # getting percentage 
-
-
-# servuval - onpplass (top class from dataset )
-df['Pclass'].describe()
-df['Plass'].value_counts() # getting total counts of pclass (first class)
-
-df['Plass'].value_counts().plot(kind='bar') # virutalisation 
-
-df['Plass'].value_counts().plot(kind='pie',autopct="%0.1f%%") # getting percentage 
-
-#Do the same as per sex(male,female), Sibsp, pach (parent-child)
-
-df['sex'].value_counts()                    # Get the frequency count of each category in 'sex' column
-df['sex'].value_counts().plot(kind='bar')   # Plot a bar chart of category frequencies in 'sex' column
-df['sex'].value_counts().plot(kind='pie', autopct='%0.1f%%') # Plot a pie chart of category frequencies in 'sex' with percentage labels
-
-
-df['Sibsp'].value_counts()                    # Get the frequency count of each category in 'Sibsp' column
-df['Sibsp'].value_counts().plot(kind='bar')   # Plot a bar chart of category frequencies in 'Sibsp' column
-df['Sibsp'].value_counts().plot(kind='pie', autopct='%0.1f%%') # Plot a pie chart of category frequencies in 'Sibsp' with percentage labels
-
-
-df['Parch'].value_counts()                    # Get the frequency count of each category in 'Parch' column
-df['Parch'].value_counts().plot(kind='bar')   # Plot a bar chart of category frequencies in 'Parch' column
-df['Parch'].value_counts().plot(kind='pie', autopct='%0.1f%%') # Plot a pie chart of category frequencies in 'Parch' with percentage labels
-
-
-
-```
-
-### Embarked
-
-- Southampton
-- Queenstown
-- Cherbourg
-
-```python
-
-
-df['Embarked'].value_counts()                    # Get the frequency count of each category in 'Embarked' column
-df['Embarked'].value_counts().plot(kind='bar')   # Plot a bar chart of category frequencies in 'Embarked' column
-df['Embarked'].value_counts().plot(kind='pie', autopct='%0.1f%%') # Plot a pie chart of category frequencies in 'Embarked' with percentage labels
-
-df['Embarked'].isnull                    # checking null value where we don't know location from they started
-```
+Probability of 50 events occuring (lambda_val = 50.0 : 0.0563)
+'''
 
 ####
-```python
+# Poisson formula: P(X=k) = (e^-λ * λ^k) / k!
 
-pd.crosstab(df['Pclass'], df['Embarked'], normalize='columns')*100
-```
+k = 40  # number of events we want probability for
+probability = (math.exp(-lambda_val) * (lambda_val ** k)) / math.factorial(k)
+print(f"Probability of {k} events occuring (lambda_val = {lambda_val} : {probability:.4f})")
 
-# survived and age
-```python
-df[df['Survived'] == 1]['Age'].plot(kind='kde', label='Survived')        # Plot KDE for 'Age' column where passengers survived
-df[df['Survived'] == 0]['Age'].plot(kind='kde', label='Not Survived')    # Plot KDE for 'Age' column where passengers did not survive
+# Output: Probability of 40 events occuring (lambda_val = 50.0 : 0.0215)
 
-plt.legend()    # Show legend for Survived/Not Survived curves
-plt.show()      # Display the plot
-```
+# Generate values for k: and use metaplotlib for generating the plots 
+k_values = np.arange(30, 70)
+poisson_pmf = [(math.exp(-lambda_val) * (lambda_val ** k)) / math.factorial(k) for k in k_values]
 
-# mean value who is traveling in third class
-```python
-df[df['Pclass'] == 2]['Age'].mean()    # Calculate the mean age of passengers in class 2
-```
+plt.plot(k_values, poisson_pmf, marker='o')
+plt.title('Poisson Distribution (lambda_val = 50)')
+plt.xlabel('Number of Events (k)')
+plt.ylabel('Probability P(X = k)')
+plt.grid(True)
+plt.show()
+
+# now create table for all the values in stread of working on selective one 
+k_values = np.arange(0, int(lambda_val*2))  # up to 2*avg calls
+poisson_pmf = [(math.exp(-lambda_val) * lambda_val**k) / math.factorial(k) for k in k_values]
+
+pmf_table = pd.DataFrame({'k (calls)': k_values, 'P(X=k)': poisson_pmf})
+pmf_table
+'''
+| k (calls) |      P(X=k)      |
+|-----------|------------------|
+|     0     | 1.928750e-22     |
+|     1     | 9.643749e-21     |
+|     2     | 2.410937e-19     |
+|     3     | 4.018229e-18     |
+|     4     | 5.022786e-17     |
+|   ...     |      ...         |
+|    95     | 4.713320e-09     |
+|    96     | 2.454854e-09     |
+|    97     | 1.265389e-09     |
+|    98     | 6.450656e-10     |
+|    99     | 3.260639e-10     |
 
 
-# Feature engineering on Fare col
-```python
-df['SibSp'].value_counts()    # Display the frequency count of each value in the 'SibSp' column (number of siblings/spouses aboard)
+'''
 
-```
+# now get the pick hours 
+peak_hours = call_per_hours['call_per_hours'] > call_per_hours.mean()
+print("Peak Hours (Above Average):")
+print(peak_hours)
 
-## 
-```python
-df[['individual_fare', 'Fare']].describe()    # Show summary statistics for 'individual_fare' and 'Fare' columns in the df2 DataFrame
-```
+'''
+# Output
+Hour
+9     61
+10    50
+11    50
+12    42
+13    54
+14    63
+15    48
+16    53
+17    60
+18    19
+Name: Call_ID, dtype: int64
 
-#### family_type
-# 1 -> alone
-# 2-4 -> small
-# >5 -> large
+Peak Hours (Above Average):
+Hour
+9     61
+13    54
+14    63
+16    53
+17    60
+Name: Call_ID, dtype: int64
 
-```python
-def transform_family_size(num):               # Define a function to classify family size
-    if num == 1:
-        return 'alone'                       # Single person classified as 'alone'
-    elif num > 1 and num < 5:
-        return 'small'                       # Family size of 2 to 4 classified as 'small'
-    else:
-        return 'large'                       # Family size of 5 or more classified as 'large'
+'''
 
-df['family_type'] = df['family_size'].apply(transform_family_size)   # Apply classification to each row in 'family_size', store result in 'family_type'
+# This example demonstrates how to compute the Poisson PMF and CDF using scipy.stats.poisson for a given mean rate (λ) of 50.
 
-pd.crosstab(df2['Survived'], df2['family_type'], normalize='columns') * 100
+import numpy as np
+from scipy.stats import poisson 
 
-```
-### cabin 
-df2['Cabin'].isnull().sum()/len(df2['Cabin'])
-df2['Cabin']
-df2['Cabin'].fillna('M',inplace=True)
-df2['Cabin'].value_counts()
+lambda_val = 50
+
+# Probability of exactly 50 calls
+p_50 = poisson.pmf(50, lambda_val)
+
+# Probability of 60 or fewer calls (CDF)
+p_60 = poisson.cdf(60, lambda_val)
+
+print("P(X = 50) =", p_50)
+print("P(X ≤ 60) =", p_60)
+print("P(X > 60) =", 1 - p_60)
+
+
+# This code calculates the 95% safe hourly call volume using the Poisson distribution and estimates the number of agents needed given the agent capacity.
+
+import numpy as np
+from scipy.stats import poisson
+
+lambda_val = 50        # average calls/hour
+agent_capacity = 20    # # calls per agent per hour
+
+# Find 95% safe call volume
+safe_calls = poisson.ppf(0.95, lambda_val)
+agents_needed = safe_calls / agent_capacity
+
+print("Safe number of calls (95% of hours):", safe_calls)
+print("Agents needed:", np.ceil(agents_needed))
+
+---
+
+
+## Normal Distribution
+
+### 1. What is normal distribution?
+
+Normal distribution, also known as Gaussian distribution, is a probability distribution that is commonly used in statistical analysis. It is a continuous probability distribution that is symmetrical around the mean, with a bell-shaped curve.
+
+
+
+> Lots of points near the mean and very few far away
+
+The normal distribution is characterized by two parameters: the mean (\(\mu\)) and the standard deviation (\(\sigma\)). The mean represents the centre of the distribution, while the standard deviation represents the spread of the distribution. Denoted as:
+
+
+n ~ N(M,o) # [m -meanm, o - standard discutubtion]
+
+### Why is it so important?
+
+Commonality in Nature: Many natural phenomena follow a normal distribution, such as the heights of people, the weights of objects, the IQ scores of a population, and many more. Thus, the normal distribution provides a convenient way to model and analyse such data.
+
+***
+
+### PDF Equation of Normal Distribution
+
+\[
+f(x) = \frac{1}{\sigma \sqrt{2\pi}} e^{-\frac{1}{2} \left(\frac{x-\mu}{\sigma}\right)^2}
+\]
+
+***
+
+Parameters in Normal Distribution
+
+Equation in detail:
+
+snd
+m =0
+standard diviation = 1
+desmos.com
+
+
+f(x) = 1/2pie - 1/2 (x-u )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+##################### 
+
+
+### What is the Benefit?
+
+Suppose the heights of adult males in a certain population follow a normal distribution with a mean of 68 inches and a standard deviation of 3 inches. What is the probability that a randomly selected adult male from this population is taller than 72 inches?
+
+***
+
+### What are Z-tables
+
+A Z-table tells you the area underneath a normal distribution curve, to the left of the z-score.
+
+
+# example of code 
 
