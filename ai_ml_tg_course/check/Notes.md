@@ -164,13 +164,13 @@ result = 22 / 7
 print(result)   # 3.142857...
 
 result = 22 % 7
-print(result)   # 1  (% gives remainder)
+print(result)   # 1  (% gives remainder) # modulo operator
 
 result = 2 * 4
 print(result)   # 8
 
 result = 2 ** 4
-print(result)   # 16 (power operator)
+print(result)   # 16 (power operator) # explanation operator
 ```
 
 ---
