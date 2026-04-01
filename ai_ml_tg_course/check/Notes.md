@@ -47,9 +47,59 @@ marks = input('Enter your marks: ')
 ---
 
 ## 📦 Data Structures
+- all data details are stored in pvm(python virutal memory)
+- integer(int), float, string(str) and tuple are immutable and rest are mutable 
+
+
+In Python, there are **4 common immutable data types**:
+
+## 1. **int** (Integers)
+```python
+x = 42
+# x cannot be changed; reassigning creates a new object
+x = 43  # new integer object
+```
+
+## 2. **float** (Floating-point numbers)
+```python
+pi = 3.14159
+# float values are immutable
+pi = 3.14  # new float object
+```
+
+## 3. **str** (Strings)
+```python
+text = "hello"
+# text[0] = 'H'  # This would raise an error!
+text = text.capitalize()  # creates a new string
+```
+
+## 4. **tuple** (Tuples)
+```python
+coordinates = (10, 20)
+# coordinates[0] = 15  # This would raise an error!
+# Tuples cannot be modified after creation
+```
+
+---
+
+### Quick Reference Table:
+
+| Data Type | Immutable? | Example |
+|-----------|------------|---------|
+| `int` | ✓ Immutable | `age = 25` |
+| `float` | ✓ Immutable | `price = 19.99` |
+| `str` | ✓ Immutable | `name = "Alice"` |
+| `tuple` | ✓ Immutable | `point = (1, 2)` |
+| `list` | ✗ Mutable | `items = [1, 2, 3]` |
+| `dict` | ✗ Mutable | `person = {"name": "Bob"}` |
+| `set` | ✗ Mutable | `numbers = {1, 2, 3}` |
+
+**Note:** `frozenset` and `bool` are also immutable in Python, but the four listed above are the most commonly used immutable types.
+
 
 ### 🧮 List
-
+- List in square bracket
 * **Insertion order preserved**
 * **Duplicates allowed**
 * **Heterogeneous objects allowed** (e.g., `[10, 'apple', 34.5]`)
@@ -63,14 +113,24 @@ lst = [10, 20, 30, 40, 50]
 print(lst)
 # Output: [10, 20, 30, 40, 50]
 
+lst[0]=90
+print("With index 0 updated value", lst)
+# Output: With 0 index updated value [90, 20, 30, 40, 50]
+
 lst.append(1000)
+print("List append or increse insertion", lst)
+# Output: List append or increse insertion [90, 20, 30, 40, 50, 1000]
+
 lst.pop()
+print("List delete or decrease", lst)
+# Output: List delete or decrease [90, 20, 30, 40, 50]
+
 ```
 
 ---
 
 ### 📚 Tuple
-
+- Tuple in paranthisis ()
 * **Immutable** – cannot change after creation
 * Supports **packing** and **unpacking**
 * A single-element tuple must have a comma → `(10,)`
@@ -86,8 +146,23 @@ print(x, y, z)
 t4 = (10, 20, 30)
 print(t4)
 print(type(t4))
+
+
 ```
 
+```python
+t1, t2=(10,29)
+print(t1)
+print(t2)
+```
+
+```python
+t1=('Delhi','Mumbai')
+d, b = t1
+print("Print D", d, type(d))
+print("Print B", b, type(b))
+
+```
 > A tuple with one element like `(10)` is not a tuple — it’s an integer.
 
 ---
@@ -104,14 +179,23 @@ print(type(t4))
 ```python
 set1 = {10, 20, 30, 40, 50}
 print(set1)
+print(type(set1))
 # Output: {40, 10, 50, 20, 30}
 ```
 
+```python
+s1 = {10, 20, 30, 40, 50}
+s2 = {20,38,50,10}
+
+print('Removed values from s1 which is matched in s2 which is nothing but the difference:',s1 - s2)
+print('Uniqe only not duplicate from s1 and s2:',s1 | s2)
+print('Symmetric Difference/Retun elements present either in s1 or s2 but not in both:',s1 ^ s2) 
+```
 ---
 
 ### 📘 Dictionary
 
-* Data from APIs often comes in **JSON**, which maps to **Python dictionary**
+* Data from APIs often comes in **JSON**(Java script object notation), which maps to **Python dictionary**
 * **No indexing**
 * **Access values by keys**
 * **Keys must be unique**
@@ -119,17 +203,35 @@ print(set1)
 **Example:**
 
 ```python
-d1 = {'Name': 'Navid', 'Age': 40}
+d1 = {'Name': 'Navid', 'Age': 40, 'Location': 'Sofia'}
 print(d1)
-print(d1.keys())
-print(d1.values())
-print(d1.items())
+# To print all keys
+print('Print all the keys from Dictionary:', d1.keys())
+
+# To print all values
+print('Print all the values from Dictionary:', d1.values())
+
+# To list iteam - it will give the list and inside that list there will be tuple 
+print('Print all the iteams from Dictionary:', d1.items())
 ```
 
+# To select specific key to print
+```python
+d1 = {'Name': 'Navid', 'Age': 40}
+print(d1['Name']) # To select specific key to print
+```
+
+# To append the dictionary key value
+```python
+d1 = {'Name': 'Navid', 'Age': 40}
+d1['Name'] = 'Ali'
+print(d1)
+```
 **Find specific values in dictionary:**
 
 ```python
-for key, value in d1.items():
+d2 = {101 = 'Mango', 102 = 'Apple', 103 = 'Mango', 104 = 'Banana'}
+for key, value in d2.items():
     if value == 'Mango':
         print(key, value)
 ```
@@ -193,18 +295,20 @@ print(lst[-3])  # 30
 ---
 
 ## ✂️ Slice Operator
+- slice operator is used for list to get slice of index or selective part from the list.
 
 **Syntax:**
 
 ```
-list[start : stop : step]
+list[start : stop : step] 
+- step tell us your list will print in forward or reverse order
 ```
 
 **Example:**
 
 ```python
 lst = [10, 20, 30, 50, 80, 35]
-sub_lst = lst[0:3]
+sub_lst = lst[0:3] # Default step always be -1 (don't consider this as step default value,so it will print until 0 to 2 index only
 print(sub_lst)
 # Output: [10, 20, 30]
 ```
@@ -215,6 +319,16 @@ print(sub_lst)
 
 ## 🔁 Reverse a List
 
+
+### Forward order 
+```python
+lst = [10, 20, 30, 50, 60]
+rev_list = lst[::1]
+print(rev_list)
+# Output: [10, 20, 30, 50, 60]
+```
+
+## Reverse order
 ```python
 lst = [10, 20, 30, 50, 60]
 rev_list = lst[::-1]
