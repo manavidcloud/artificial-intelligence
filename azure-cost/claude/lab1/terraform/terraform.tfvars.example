@@ -1,0 +1,38 @@
+# ─── REQUIRED — fill these before running terraform apply ────────────────────
+
+tenant_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+# All subscriptions the platform reads cost data from (same Entra tenant)
+target_subscription_ids = [
+  "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",  # sub-nuuday-prod
+  "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",  # sub-dpt-prod
+  "cccccccc-cccc-cccc-cccc-cccccccccccc",  # sub-shared-services
+]
+
+# Entra ID group object IDs that get cluster-admin on AKS
+admin_group_object_ids = [
+  "dddddddd-dddd-dddd-dddd-dddddddddddd",  # sg-aks-admins
+]
+
+# ─── OPTIONAL — override defaults ────────────────────────────────────────────
+
+location    = "westeurope"
+environment = "prod"
+project     = "costplatform"
+
+aks_kubernetes_version = "1.30"
+
+aks_system_node_count = 2
+aks_system_vm_size    = "Standard_D2s_v3"
+
+aks_app_node_count = 2
+aks_app_min_nodes  = 2
+aks_app_max_nodes  = 6
+aks_app_vm_size    = "Standard_D4s_v3"
+
+log_analytics_retention_days = 30
+
+tags = {
+  team       = "cloud-engineering"
+  costcenter = "platform"
+}
