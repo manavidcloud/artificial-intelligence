@@ -702,10 +702,12 @@ az postgres flexible-server db create ^
   --server-name finops-pgflex ^
   --database-name finops-db
 
+![Until step 10:](image.png)
 ---
 
 # Step 11 — Create Key Vault
 
+![Key Vault](image-1.png)
 Purpose:
 
 * secrets
@@ -720,6 +722,16 @@ Purpose:
 ✅ RBAC authorization
 ✅ soft delete
 ✅ purge protection
+
+az keyvault create \
+  --name kv-finops-prod-001 \
+  --resource-group rg-finops-prod-core \
+  --location centralindia \
+  --enable-rbac-authorization true \
+  --enable-purge-protection true \
+  --retention-days 90 \
+  --public-network-access Disabled
+
 
 ---
 
