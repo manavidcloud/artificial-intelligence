@@ -724,7 +724,7 @@ Purpose:
 ✅ purge protection
 
 az keyvault create \
-  --name kv-finops-prod-001 \
+  --name kv-finops-prod-002 \
   --resource-group rg-finops-prod-core \
   --location centralindia \
   --enable-rbac-authorization true \
@@ -732,7 +732,7 @@ az keyvault create \
   --retention-days 90 \
   --public-network-access Disabled
 
-
+- check vault-script/1.setup-keyvault.sh
 ---
 
 # Step 12 — Configure Managed Identity
@@ -748,7 +748,7 @@ This avoids:
 
 * secrets in Kubernetes
 * static credentials
-
+- vault-secript/2.setup-worldlocay identyity
 ---
 
 # Permissions Needed
@@ -762,10 +762,11 @@ At Management Group/Tenant:
 | Monitoring Reader      | metrics         |
 | Advisor Reader         | recommendations |
 
+
 ---
 
 # Step 13 — Install oauth2-proxy
-
+- vault-scripts/3.setup-oauth2-proxy.sh
 This is your authentication gateway.
 
 ---
@@ -1002,6 +1003,119 @@ AKS Connected To:
 
 ---
 
+helm repo add external-secrets https://charts.external-secrets.io
+helm repo update
+helm install external-secrets external-secrets/external-secrets \
+  -n security --create-namespace \
+  --set installCRDs=true
+
+  Verify: Run kubectl get secretstore -A again. It should return "No resources found" instead of an error.
+
+
+2. Fix the Database Timeout
+The timed out waiting for the condition on your busybox test usually means one of two things:
+
+Network Isolation: Your AKS cluster cannot reach the DNS service or the PostgreSQL subnet.
+
+Missing Private DNS Link: Azure PostgreSQL Flexible Server uses a Private DNS Zone. If that zone isn't "Linked" to your finops-prod-vnet, the name simply won't resolve.
+
+The Fix (Check the Link):
+
+Go to the Azure Portal.
+
+Search for Private DNS Zones.
+
+Look for one named something like privatelink.postgres.database.azure.com.
+
+Click Virtual network links on the left sidebar.
+
+If your finops-prod-vnet isn't listed, click Add and link it.
+
+The Fix (Test Connection):
+Once the link is there, try a simpler test that doesn't rely on the busybox "condition":
+
+Bash
+kubectl run -it --rm --restart=Never alpine --image=alpine -- sh
+# Inside the pod, run:
+nslookup finops-pgflex.postgres.database.azure.com
+3. Missing Entra ID "Handshake"
+Since you are using Workload Identity, you need to ensure your platform namespace is prepared for the API you'll build in Lab 2.
+
+Run this to check if your ServiceAccount is ready:
+
+Bash
+kubectl get sa -n platform
+You should see a service account (e.g., finops-api-sa) that has an annotation pointing to your Azure Managed Identity Client ID. If you don't have this, the FastAPI app in Lab 2 will get "Access Denied" when trying to read secrets.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+For Lab 2, your Python code needs to authenticate as a Managed Identity. Run this command to check if the link is active:
+C:\Users\manav>kubectl get sa -n platform
+NAME               SECRETS   AGE
+cost-platform-sa   0         20h
+default            0         20h
+Bash
+
+kubectl get sa cost-platform-sa -n platform -o yaml
+
+Look for this annotation:
+
+azure.workload.identity/client-id: "YOUR_MANAGED_IDENTITY_CLIENT_ID"
+
+If that isn't there, Lab 2's FastAPI code will fail with an authentication error because it won't know which Azure Identity to "assume."
+
+
+2. Connect the "Plumbing" (ClusterSecretStore)
+Since kubectl get secretstore -A returned "No resources found," you have the operator installed, but no bridge to your Key Vault yet. You need to create a ClusterSecretStore so K8s can actually pull the secrets you'll need in Lab 2.
+
+apiVersion: external-secrets.io/v1
+kind: ClusterSecretStore
+metadata:
+  name: azure-store
+spec:
+  provider:
+    azurekv:
+      authType: WorkloadIdentity
+      vaultUrl: "https://kv-finops-prod-002.vault.azure.net/"
+      serviceAccountRef:
+        name: cost-platform-sa
+        namespace: platform
+
+kubectl get crd clustersecretstores.external-secrets.io
+kubectl api-resources | grep clustersecretstore
+rm -rf ~/.kube/cache
+
+kubectl get crd clustersecretstores.external-secrets.io -o jsonpath='{.spec.versions[0].name}'
+- version should be match with manifest else update manifest 
+
+reapply above manifest once
+
+kubectl get clustersecretstore
+- this must show True
+
+Here is the "Chain of Trust" you've built:
+
+Azure Key Vault trusts your Managed Identity.
+
+Managed Identity trusts your AKS OIDC Issuer.
+
+AKS trusts your Service Account (cost-platform-sa).
+
+External Secrets Operator uses that Service Account to fetch your DB passwords.
+
+###################################    
 # What Comes In LAB 2
 
 Next lab will build:
@@ -1020,4 +1134,3 @@ Including:
 ✅ resource inventory engine
 ✅ initial REST APIs
 
-This is where the actual FinOps platform begins.
