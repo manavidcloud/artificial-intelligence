@@ -1,0 +1,29 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: finops-vector-init
+  namespace: platform
+spec:
+  template:
+    spec:
+      containers:
+      - name: psql
+        image: postgres:16-alpine
+        env:
+        - name: PGPASSWORD
+          value: "YourStr0ngPass!"
+        command: ["sh", "-c"]
+        args:
+        - |
+          psql -h finops-pgflex.postgres.database.azure.com -U pgadmin -d finops-db <<EOF
+          CREATE EXTENSION IF NOT EXISTS vector;
+          
+          -- Table to store resource metadata for the AI to "read"
+          CREATE TABLE IF NOT EXISTS resource_embeddings (
+              id SERIAL PRIMARY KEY,
+              resource_id TEXT UNIQUE,
+              content TEXT, -- Human readable description
+              embedding vector(1536) -- 1536 is the standard for OpenAI embeddings
+          );
+          EOF
+      restartPolicy: OnFailure

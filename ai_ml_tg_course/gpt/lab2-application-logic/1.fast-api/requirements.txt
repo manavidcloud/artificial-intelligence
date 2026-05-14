@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+azure-identity
+azure-mgmt-resourcegraph
+azure-mgmt-costmanagement
+psycopg2-binary

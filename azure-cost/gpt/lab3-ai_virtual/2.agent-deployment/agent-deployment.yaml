@@ -1,0 +1,109 @@
+## ---------------------------------------------------------------
+## STEP 1: Create the ai namespace
+## ---------------------------------------------------------------
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ai
+---
+## ---------------------------------------------------------------
+## STEP 2: Service Account with Workload Identity
+## The annotation links this SA to your Managed Identity (mi-finops-prod)
+## Run workload-identity-setup.sh first to federate it
+## ---------------------------------------------------------------
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ai-platform-sa
+  namespace: ai
+  annotations:
+    azure.workload.identity/client-id: "b0bc52b2-7b79-444d-a0e6-ef1421d86314"
+---
+## ---------------------------------------------------------------
+## STEP 3: DB password secret (only secret needed — no OpenAI key!)
+## Azure OpenAI auth is handled by Workload Identity
+##
+## kubectl create secret generic finops-ai-secret \
+##   --from-literal=db-password="YourStr0ngPass!" \
+##   --namespace ai
+## ---------------------------------------------------------------
+## Secret is created via kubectl (not stored in this file):
+## kubectl create secret generic finops-ai-secret \
+##   --from-literal=db-password="YourStr0ngPass!" \
+##   --namespace ai
+---
+## ---------------------------------------------------------------
+## STEP 4: LangGraph Agent Deployment
+## Uses Workload Identity — no OpenAI key in the pod
+## ---------------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: finops-ai-agent
+  namespace: ai
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: finops-ai-agent
+  template:
+    metadata:
+      labels:
+        app: finops-ai-agent
+        azure.workload.identity/use: "true"
+    spec:
+      serviceAccountName: ai-platform-sa
+      containers:
+      - name: finops-ai-agent
+        image: finopsacrmanmas.azurecr.io/finops-ai-agent:v3
+        ports:
+        - containerPort: 8000
+        env:
+        - name: AZURE_OPENAI_ENDPOINT
+          value: "https://southindia.api.cognitive.microsoft.com/"
+        - name: AZURE_OPENAI_DEPLOYMENT
+          value: "gpt-4o-mini"
+        - name: AZURE_OPENAI_API_VERSION
+          value: "2024-08-01-preview"
+        - name: AZURE_OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: finops-ai-secret
+              key: openai-api-key
+        - name: DB_HOST
+          value: "finops-pgflex.postgres.database.azure.com"
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: finops-ai-secret
+              key: db-password
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 15
+          periodSeconds: 10
+---
+## ---------------------------------------------------------------
+## STEP 5: ClusterIP Service
+## Streamlit calls: http://finops-ai-agent-svc.ai.svc.cluster.local
+## ---------------------------------------------------------------
+apiVersion: v1
+kind: Service
+metadata:
+  name: finops-ai-agent-svc
+  namespace: ai
+spec:
+  type: ClusterIP
+  selector:
+    app: finops-ai-agent
+  ports:
+  - port: 80
+    targetPort: 8000
