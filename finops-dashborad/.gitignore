@@ -1,0 +1,17 @@
+secrets.env
+.env
+*.env
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+.idea/
+.vscode/
+*.egg-info/
+dist/
+build/
+node_modules/
+.next/
+
+# User credentials — never commit (use users.yaml.template)
+4-dashboard/src/users.yaml

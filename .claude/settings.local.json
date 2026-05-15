@@ -1,7 +1,17 @@
 {
   "permissions": {
     "allow": [
-      "Bash(az postgres *)"
+      "Bash(az postgres *)",
+      "PowerShell(Get-ChildItem \"c:\\\\Program Files\\\\Git\\\\artificial-intelligence\\\\azure-cost\\\\gpt\" -Force | ForEach-Object { $_.FullName })",
+      "PowerShell(ls \"c:\\\\Program Files\\\\Git\\\\artificial-intelligence\\\\azure-cost\\\\gpt\\\\4-dashboard\\\\src\" -Recurse | Where-Object { !$_.PSIsContainer } | Select-Object FullName)",
+      "PowerShell(cmd /c dir \"c:\\\\Program Files\\\\Git\\\\artificial-intelligence\\\\azure-cost\\\\gpt\\\\4-dashboard\\\\src\" /s /b)",
+      "PowerShell(cmd /c dir \"c:\\\\Program Files\\\\Git\\\\artificial-intelligence\\\\azure-cost\\\\gpt\\\\1-infrastructure\\\\scripts\" /b)",
+      "PowerShell(cmd /c dir \"c:\\\\Program Files\\\\Git\\\\artificial-intelligence\\\\azure-cost\\\\gpt\\\\4-dashboard\\\\src\\\\app\" /b /s)",
+      "Bash(ls \"c:\\\\Program Files\\\\Git\\\\artificial-intelligence\\\\\" && echo \"---\" && ls \"c:\\\\Program Files\\\\Git\\\\artificial-intelligence\\\\finops-dashboard\" 2>/dev/null || echo \"empty\")",
+      "Read(//c/Program Files/Git/**)",
+      "PowerShell(New-Item -ItemType Directory -Force -Path \"C:\\\\Program Files\\\\Git\\\\artificial-intelligence\\\\finops-dashborad\\\\2-platform-api\\\\src\\\\providers\")",
+      "PowerShell(New-Item -ItemType Directory -Force -Path \"C:\\\\Program Files\\\\Git\\\\artificial-intelligence\\\\finops-dashborad\\\\2-platform-api\\\\k8s\")",
+      "Bash(grep -n '^set -euo pipefail\\\\|^banner\\\\|^STEP\\\\|^DB_PASSWORD=$\\(python3\\\\|^OIDC_ISSUER=\\\\|az identity federated-credential' 'C:/Program Files/Git/artificial-intelligence/finops-dashborad/1-infrastructure/scripts/setup.sh')"
     ]
   }
 }
