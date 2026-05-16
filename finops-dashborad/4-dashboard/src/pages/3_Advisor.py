@@ -1,6 +1,7 @@
 """FinOps Dashboard — Azure Advisor Intelligence Center."""
 import io
 import math
+import re
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
@@ -95,6 +96,61 @@ def _is_rightsize(rec: dict) -> bool:
     return any(kw in text for kw in _RIGHTSIZE_KW)
 
 
+_UUID_RE = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.I
+)
+
+
+def _clean_resource_name(name: str, sub_id: str, sid_map: dict,
+                         resource_id: str = "",
+                         res_lookup: dict | None = None) -> str:
+    """Return the best human-readable resource name.
+
+    Priority:
+    1. Resource inventory name (from Azure Resource Graph via /resources endpoint)
+    2. Last segment of the ARM resource_id path
+    3. resource_name field if it is a plain string (not a UUID)
+    4. Subscription display name if either field is the subscription UUID
+    5. "Subscription-level" as final fallback
+    """
+    rid = (resource_id or "").strip()
+    nm  = (name or "").strip()
+
+    # 1. Direct lookup in resource inventory (most accurate — actual Azure name)
+    if res_lookup and rid:
+        inv_name = res_lookup.get(rid.lower())
+        if inv_name:
+            return inv_name
+
+    # 2. ARM resource_id last segment  (e.g. /…/virtualMachines/my-vm → "my-vm")
+    if rid and "/" in rid:
+        last = rid.rstrip("/").split("/")[-1]
+        if last and not _UUID_RE.match(last):
+            return last
+
+    # 3. resource_name plain string
+    if nm and not _UUID_RE.match(nm):
+        return nm.rstrip("/").split("/")[-1] if "/" in nm else nm
+
+    # 4. UUID → subscription display name
+    for candidate in [nm, rid, sub_id or ""]:
+        if candidate and _UUID_RE.match(candidate.strip()):
+            display = sid_map.get(candidate.strip())
+            if display:
+                return f"Subscription: {display}"
+
+    return "Subscription-level"
+
+
+def _clean_rg(resource_id: str, sub_id: str, sid_map: dict) -> str:
+    """Return the resource group, or the subscription name for sub-level recs."""
+    rg = _rg_from_id(resource_id or "")
+    if rg != "Unknown":
+        return rg
+    display = sid_map.get(sub_id or "")
+    return f"Sub: {display}" if display else "Subscription-level"
+
+
 # ─── Sidebar ──────────────────────────────────────────────────────────────────
 sub_id_to_name: dict = {}
 
@@ -125,8 +181,24 @@ if sub_filter:
     advisor_params["subscription_id"] = sub_filter
 
 advisor_resp  = get("/advisor", advisor_params)
-all_cost_resp = get("/advisor", {"category": "Cost"})
+# all_cost_resp is used by every tab — respect subscription filter but not impact filter
+_all_params: dict = {"category": "Cost"}
+if sub_filter:
+    _all_params["subscription_id"] = sub_filter
+all_cost_resp = get("/advisor", _all_params)
 summary_resp  = get("/advisor/summary")
+
+# Resource inventory: id (ARM path) → name — used to resolve advisor resource_ids
+_res_params: dict = {"limit": 2000}
+if sub_filter:
+    _res_params["subscription_id"] = sub_filter
+_res_resp   = get("/resources", _res_params)
+# Keyed by lowercase ARM ID for case-insensitive matching
+_res_lookup: dict[str, str] = {
+    r["id"].lower(): r["name"]
+    for r in (_res_resp or {}).get("data", [])
+    if r.get("id") and r.get("name")
+}
 
 all_data  = (all_cost_resp or {}).get("data", [])
 filt_data = (advisor_resp  or {}).get("data", [])
@@ -220,16 +292,18 @@ with tab_matrix:
     if all_data:
         rows_pm = []
         for rec in all_data:
-            s  = convert(rec.get("potential_savings") or 0, rec.get("currency", "USD"), disp_currency)
-            cx = _complexity(rec)
+            s    = convert(rec.get("potential_savings") or 0, rec.get("currency", "USD"), disp_currency)
+            cx   = _complexity(rec)
+            _sid = rec.get("subscription_id") or ""
             rows_pm.append({
                 "desc":     (rec.get("short_description") or "")[:72],
-                "resource": (rec.get("resource_name") or "Unknown"),
+                "resource": _clean_resource_name(rec.get("resource_name") or "", _sid, sub_id_to_name,
+                                                  rec.get("resource_id") or "", _res_lookup),
                 "impact":   (rec.get("impact") or "Low"),
                 "savings":  s,
                 "cx":       cx,
                 "cx_label": _COMPLEXITY_LABELS[cx],
-                "rg":       _rg_from_id(rec.get("resource_id") or ""),
+                "rg":       _clean_rg(rec.get("resource_id") or "", _sid, sub_id_to_name),
             })
         df_pm = pd.DataFrame(rows_pm)
 
@@ -336,8 +410,11 @@ with tab_all:
             cx       = _complexity(rec)
             cx_lbl   = _COMPLEXITY_LABELS[cx]
             cx_color = _COMPLEXITY_COLORS[cx]
-            rg       = _rg_from_id(rec.get("resource_id") or "")
-            sub_name = sub_id_to_name.get(rec.get("subscription_id", ""), rec.get("subscription_id", "N/A") or "N/A")
+            _sub_id  = rec.get("subscription_id") or ""
+            _rid     = rec.get("resource_id") or ""
+            rg       = _clean_rg(_rid, _sub_id, sub_id_to_name)
+            res_name = _clean_resource_name(rec.get("resource_name") or "", _sub_id, sub_id_to_name, _rid, _res_lookup)
+            sub_name = sub_id_to_name.get(_sub_id, _sub_id) if _sub_id else "N/A"
 
             with st.expander(f"{desc[:88]}{'…' if len(desc) > 88 else ''}"):
                 col_info, col_sav = st.columns([3, 1])
@@ -351,11 +428,11 @@ with tab_all:
                         f"border:1px solid {cx_color}44;'>{cx_lbl}</span>",
                         unsafe_allow_html=True,
                     )
-                    st.markdown(f"**Resource:** `{rec.get('resource_name', 'N/A')}`")
+                    st.markdown(f"**Resource:** `{res_name}`")
                     st.markdown(f"**Description:** {desc}")
                     st.caption(f"Resource Group: {rg}  ·  Subscription: {sub_name}")
-                    if rec.get("resource_id"):
-                        st.caption(f"ID: {rec['resource_id']}")
+                    if rec.get("resource_id") and not _UUID_RE.match(rec.get("resource_id", "")):
+                        st.caption(f"ARM ID: {rec['resource_id']}")
                 with col_sav:
                     savings_str = fmt(savings, disp_currency) if savings else "N/A"
                     st.markdown(
@@ -371,20 +448,37 @@ with tab_all:
 
         st.divider()
         df_ex = pd.DataFrame(filt_data)
-        if "resource_id" in df_ex.columns:
-            df_ex["resource_group"] = df_ex["resource_id"].apply(
-                lambda x: _rg_from_id(str(x)) if pd.notna(x) else "Unknown"
-            )
-        keep = ["impact", "short_description", "resource_name", "resource_group",
-                "potential_savings", "currency", "subscription_id"]
-        df_show = df_ex[[c for c in keep if c in df_ex.columns]].copy()
-        if "subscription_id" in df_show.columns:
-            df_show["subscription_id"] = df_show["subscription_id"].apply(
-                lambda x: sub_id_to_name.get(x, x) if x else x
-            )
-        df_show.columns = [c.replace("_", " ").title() for c in df_show.columns]
+        # Resolve human-readable values before export
+        df_ex["Resource Name"] = df_ex.apply(
+            lambda r: _clean_resource_name(
+                str(r.get("resource_name") or ""),
+                str(r.get("subscription_id") or ""),
+                sub_id_to_name,
+                str(r.get("resource_id") or ""),
+                _res_lookup,
+            ), axis=1
+        )
+        df_ex["Resource Group"] = df_ex.apply(
+            lambda r: _clean_rg(
+                str(r.get("resource_id") or ""),
+                str(r.get("subscription_id") or ""),
+                sub_id_to_name,
+            ), axis=1
+        )
+        df_ex["Subscription"] = df_ex["subscription_id"].apply(
+            lambda x: sub_id_to_name.get(str(x), str(x)) if x else "N/A"
+        )
+        df_ex["Savings/yr"] = df_ex.apply(
+            lambda r: fmt(convert(r.get("potential_savings") or 0,
+                                  r.get("currency", "USD"), disp_currency), disp_currency), axis=1
+        )
+        df_show = df_ex[[
+            "impact", "short_description", "Resource Name",
+            "Resource Group", "Savings/yr", "Subscription",
+        ]].copy()
+        df_show = df_show.rename(columns={"impact": "Impact", "short_description": "Recommendation"})
         _dl_header("Export Recommendations", df_show, "advisor_all")
-        st.dataframe(df_show, use_container_width=True)
+        st.dataframe(df_show, use_container_width=True, hide_index=True)
     else:
         st.info("No recommendations found. Adjust the Impact filter or run a sync from the Home page.")
 
@@ -421,9 +515,13 @@ with tab_leaderboard:
             s       = convert(rec.get("potential_savings") or 0, rec.get("currency", "USD"), disp_currency)
             pct_bar = min(100, int(s / max_s * 100))
             impact  = rec.get("impact") or "Low"
-            color   = _IMPACT_COLORS.get(impact, "#94a3b8")
-            cx      = _complexity(rec)
-            rg      = _rg_from_id(rec.get("resource_id") or "")
+            _sub_id  = rec.get("subscription_id") or ""
+            color    = _IMPACT_COLORS.get(impact, "#94a3b8")
+            cx       = _complexity(rec)
+            _rid     = rec.get("resource_id") or ""
+            rg       = _clean_rg(_rid, _sub_id, sub_id_to_name)
+            res_name = _clean_resource_name(rec.get("resource_name") or "", _sub_id, sub_id_to_name, _rid, _res_lookup)
+            sub_name = sub_id_to_name.get(_sub_id, _sub_id[:8] + "…" if _sub_id else "N/A")
 
             st.markdown(
                 f"<div style='display:flex; align-items:center; gap:14px; "
@@ -436,7 +534,7 @@ with tab_leaderboard:
                 f"white-space:nowrap; overflow:hidden; text-overflow:ellipsis;'>"
                 f"{(rec.get('short_description') or '')[:78]}</div>"
                 f"<div style='color:#64748b; font-size:11px; margin-top:1px;'>"
-                f"{rec.get('resource_name', 'Unknown')} · {rg} · {_COMPLEXITY_LABELS[cx]}</div>"
+                f"{res_name} · {rg} · {sub_name} · {_COMPLEXITY_LABELS[cx]}</div>"
                 f"<div style='margin-top:6px; background:rgba(255,255,255,0.06); "
                 f"border-radius:3px; height:5px;'>"
                 f"<div style='background:{color}; height:5px; width:{pct_bar}%; "
@@ -460,7 +558,8 @@ with tab_rg:
     if all_data:
         rg_map: dict = {}
         for rec in all_data:
-            rg = _rg_from_id(rec.get("resource_id") or "")
+            _sid = rec.get("subscription_id") or ""
+            rg = _clean_rg(rec.get("resource_id") or "", _sid, sub_id_to_name)
             if rg not in rg_map:
                 rg_map[rg] = {"count": 0, "savings": 0.0, "high": 0, "recs": []}
             s = convert(rec.get("potential_savings") or 0, rec.get("currency", "USD"), disp_currency)
@@ -511,17 +610,20 @@ with tab_rg:
                 f"{int(row['high'])} high-impact"
             ):
                 for rec in recs:
-                    imp = rec.get("impact") or "Low"
-                    ic  = _IMPACT_COLORS.get(imp, "#94a3b8")
-                    s   = convert(rec.get("potential_savings") or 0,
-                                  rec.get("currency", "USD"), disp_currency)
+                    imp  = rec.get("impact") or "Low"
+                    ic   = _IMPACT_COLORS.get(imp, "#94a3b8")
+                    s    = convert(rec.get("potential_savings") or 0,
+                                   rec.get("currency", "USD"), disp_currency)
+                    _rsid = rec.get("subscription_id") or ""
+                    _rrid = rec.get("resource_id") or ""
+                    _rn   = _clean_resource_name(rec.get("resource_name") or "", _rsid, sub_id_to_name, _rrid, _res_lookup)
                     st.markdown(
                         f"<div style='border-left:3px solid {ic}; padding:6px 10px; "
                         f"margin:3px 0; background:rgba(255,255,255,0.02); border-radius:0 6px 6px 0;'>"
                         f"<b style='color:#e2e8f0; font-size:13px;'>"
                         f"{(rec.get('short_description') or '')[:80]}</b><br>"
                         f"<span style='color:#94a3b8; font-size:11px;'>"
-                        f"{rec.get('resource_name', 'Unknown')} · "
+                        f"{_rn} · "
                         f"<span style='color:{ic};'>{imp}</span></span>"
                         f"<span style='float:right; color:{_green}; "
                         f"font-weight:700; font-size:13px;'>{fmt(s, disp_currency)}/yr</span>"
@@ -590,11 +692,14 @@ with tab_rightsize:
             color = _IMPACT_COLORS.get(imp, "#94a3b8")
             s     = convert(rec.get("potential_savings") or 0, rec.get("currency", "USD"), disp_currency)
             cx    = _complexity(rec)
+            _sid  = rec.get("subscription_id") or ""
+            _rid  = rec.get("resource_id") or ""
             with st.expander(f"**[{imp}]** {(rec.get('short_description') or '')[:88]}"):
                 ci, cs = st.columns([3, 1])
                 with ci:
-                    st.markdown(f"**Resource:** `{rec.get('resource_name', 'N/A')}`")
-                    st.markdown(f"**RG:** {_rg_from_id(rec.get('resource_id') or '')}")
+                    st.markdown(f"**Resource:** `{_clean_resource_name(rec.get('resource_name') or '', _sid, sub_id_to_name, _rid, _res_lookup)}`")
+                    st.markdown(f"**RG:** {_clean_rg(_rid, _sid, sub_id_to_name)}")
+                    st.markdown(f"**Subscription:** {sub_id_to_name.get(_sid, _sid) if _sid else 'N/A'}")
                     st.markdown(f"**Effort:** {_COMPLEXITY_LABELS[cx]}")
                     st.markdown(rec.get("short_description") or "")
                 with cs:

@@ -73,7 +73,10 @@ with st.sidebar:
     if st.button("🔄 Sync All Data", use_container_width=True):
         with st.spinner("Syncing all data from Azure…"):
             resp = post("/sync/all", params={"days": days})
-        st.success("Sync complete!") if resp else st.error("Sync failed — check API logs.")
+        if resp:
+            st.success("Sync complete!")
+        else:
+            st.error("Sync failed — check API logs.")
     st.markdown("---")
     st.caption("FinOps Platform v1.0")
 

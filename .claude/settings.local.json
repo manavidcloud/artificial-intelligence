@@ -5,7 +5,8 @@
       "Bash(kubectl describe *)",
       "Bash(az aks *)",
       "Bash(python3 -c ' *)",
-      "Bash(python -c ' *)"
+      "Bash(python -c ' *)",
+      "Bash(dir \"c:/Program Files/Git/artificial-intelligence/finops-dashborad/\")"
     ]
   }
 }

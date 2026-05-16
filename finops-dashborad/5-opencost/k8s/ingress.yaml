@@ -1,0 +1,90 @@
+# =============================================================================
+# OpenCost — Ingress + TLS (Let's Encrypt via cert-manager)
+# OPTIONAL COMPONENT
+#
+# Exposes two endpoints:
+#   opencost.manmas.online  — OpenCost official UI (port 9090)
+#   k8scost.manmas.online   — K8s Cost Dashboard Streamlit app (port 8502)
+#
+# Prerequisites:
+#   - NGINX Ingress Controller deployed (shared with the rest of the platform)
+#   - cert-manager deployed (shared with the rest of the platform)
+#   - DNS A records for both subdomains → NGINX ingress EXTERNAL-IP
+#   - OpenCost Helm release running in the `opencost` namespace
+#   - K8s Cost Dashboard deployed: kubectl apply -f 5-opencost/dashboard/k8s/deployment.yaml
+#
+# Usage:
+#   kubectl apply -f 5-opencost/k8s/ingress.yaml
+# =============================================================================
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Ingress — OpenCost official UI (opencost.manmas.online)
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: opencost-ingress
+  namespace: opencost
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+    # Uncomment if the OpenCost UI blocks iframe embedding:
+    # nginx.ingress.kubernetes.io/configuration-snippet: |
+    #   more_set_headers "X-Frame-Options: ALLOWALL";
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - opencost.manmas.online
+      secretName: opencost-tls
+  rules:
+    - host: opencost.manmas.online
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: opencost
+                port:
+                  number: 9090
+
+---
+# ─────────────────────────────────────────────────────────────────────────────
+# Ingress — K8s Cost Dashboard / Streamlit (k8scost.manmas.online)
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: opencost-dashboard-ingress
+  namespace: opencost
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # Streamlit requires WebSocket for live updates
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - k8scost.manmas.online
+      secretName: k8scost-tls
+  rules:
+    - host: k8scost.manmas.online
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: opencost-dashboard-svc
+                port:
+                  number: 80

@@ -251,6 +251,57 @@ with tab_types:
         )
         _dl_header("Full Type Breakdown", df_types_display, "resources_by_type")
         st.dataframe(df_types_display, use_container_width=True, height=320)
+
+        # ── Drill-down: show actual resource names for a selected type ────────
+        if not df_all.empty and "type" in df_all.columns:
+            st.divider()
+            st.subheader("🔍 Drill Down — Resources by Type")
+            st.caption("Select a resource type to see every individual resource in that group.")
+
+            # Build sub_id → display name map
+            _sub_name: dict = {}
+            if subs_resp and subs_resp.get("data"):
+                for _s in subs_resp["data"]:
+                    _sub_name[_s["id"]] = _s.get("name", _s["id"])
+
+            _type_opts = sorted(df_all["type"].str.lower().unique().tolist())
+
+            _sel_type = st.selectbox(
+                "Resource type",
+                options=_type_opts,
+                format_func=lambda t: f"{t.split('/')[-1]}  ({t})",
+                key="type_drilldown_sel",
+            )
+
+            if _sel_type:
+                df_drill = df_all[df_all["type"].str.lower() == _sel_type].copy()
+
+                # Map subscription UUID → display name
+                if "subscription_id" in df_drill.columns:
+                    df_drill["subscription_id"] = df_drill["subscription_id"].map(
+                        lambda x: _sub_name.get(str(x), str(x)) if x else "—"
+                    )
+
+                _drill_cols = [c for c in [
+                    "name", "location", "resource_group", "subscription_id", "sku"
+                ] if c in df_drill.columns]
+
+                df_drill_disp = df_drill[_drill_cols].copy()
+                df_drill_disp.columns = [
+                    c.replace("_", " ").title().replace("Subscription Id", "Subscription")
+                    for c in df_drill_disp.columns
+                ]
+
+                st.caption(
+                    f"**{_sel_type.split('/')[-1]}** · "
+                    f"{len(df_drill_disp)} resource(s) found"
+                )
+                _dl_header(
+                    f"Resources — {_sel_type.split('/')[-1]}",
+                    df_drill_disp,
+                    f"drill_{_sel_type.split('/')[-1]}",
+                )
+                st.dataframe(df_drill_disp, use_container_width=True, height=340)
     else:
         st.info("No type data available.")
 

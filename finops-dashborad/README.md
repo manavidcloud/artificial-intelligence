@@ -53,48 +53,46 @@ User → Streamlit Dashboard → Platform API → PostgreSQL
 ## Architecture
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│                        Internet / Users                          │
-└──────────────────┬───────────────────────────────────────────────┘
-                   │  HTTPS   app.manmas.online
-                   ▼
-┌──────────────────────────────────────────────────────────────────┐
-│                    AKS Ingress Controller                        │
-│              (nginx / AGIC — with TLS termination)               │
-└───────┬──────────────────────┬───────────────────────────────────┘
-        │                      │
-        ▼ frontend ns           ▼ platform / ai ns
-┌──────────────────┐   ┌──────────────────────┐  ┌───────────────┐
-│   4-Dashboard    │   │  2-Platform API       │  │  3-AI Agent   │
-│  (Streamlit)     │──▶│  (FastAPI / uvicorn)  │  │  (LangGraph)  │
-│  port 8501       │   │  port 8080            │  │  port 8000    │
-│  namespace:      │   │  namespace: platform  │  │  namespace:ai │
-│   frontend       │   │                       │  │               │
-└──────────────────┘   └──────────┬────────────┘  └──────┬────────┘
-        │                         │                       │
-        │  /chat POST             │                       │
-        └────────────────────────▶│◀──────────────────────┘
-                                  │ (AI agent calls Platform API)
-                    ┌─────────────▼──────────────┐
-                    │   PostgreSQL Flexible Server│
-                    │   (private VNet, port 5432) │
-                    │   Tables:                   │
-                    │   • cost_records            │
-                    │   • resources               │
-                    │   • advisor_recommendations │
-                    │   • subscriptions           │
-                    └────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                             Internet / Users                                 │
+└───────────────┬──────────────────────────────────────────────────────────────┘
+                │  HTTPS  app / api / ai / opencost.manmas.online
+                ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                       AKS NGINX Ingress Controller                           │
+│                    (TLS termination via cert-manager / Let's Encrypt)        │
+└──┬─────────────────┬──────────────────┬──────────────────┬───────────────────┘
+   │ frontend ns      │ platform ns       │ ai ns             │ opencost ns (opt.)
+   ▼                  ▼                   ▼                   ▼
+┌──────────────┐  ┌──────────────────┐  ┌─────────────┐  ┌──────────────────┐
+│ 4-Dashboard  │  │ 2-Platform API   │  │ 3-AI Agent  │  │ 5-OpenCost (opt) │
+│ (Streamlit)  │─▶│ (FastAPI)        │◀─│ (LangGraph) │  │ K8s cost alloc   │
+│ port 8501    │  │ port 8080        │  │ port 8000   │  │ port 9090        │
+└──────────────┘  └────────┬─────────┘  └─────────────┘  └────────┬─────────┘
+        │                  │   (AI calls Platform API)              │
+        │                  │                                        │
+        │     ┌────────────▼──────────────┐              ┌─────────▼──────────┐
+        │     │  PostgreSQL Flexible Svr  │              │  Prometheus         │
+        │     │  (private VNet, port 5432)│              │  (K8s metrics)      │
+        │     │  • cost_records           │              │  port 9090          │
+        │     │  • resources              │              └────────────────────┘
+        │     │  • advisor_recommendations│
+        │     │  • subscriptions          │
+        │     └───────────────────────────┘
+        │
+        └──────────── Auth: LOCAL yaml/bcrypt  │  OAUTH Azure AD  │  LDAP/AD
+                      (AUTH_MODE env var — see Authentication section)
 
 Azure Services Used:
-  ┌──────────────────────────────────────────────────────────────┐
-  │  Azure Cost Management   →  billing data (ActualCost API)    │
-  │  Azure Resource Graph    →  resource inventory (KQL)         │
-  │  Azure Advisor           →  Cost recommendations             │
-  │  Azure OpenAI            →  gpt-4.1-nano (AI chat)           │
-  │  Azure Container Registry→  Docker image storage             │
-  │  Azure Key Vault         →  secret management (RBAC)         │
-  │  Managed Identity        →  passwordless auth to Azure APIs  │
-  └──────────────────────────────────────────────────────────────┘
+  ┌──────────────────────────────────────────────────────────────────┐
+  │  Azure Cost Management   →  billing data (ActualCost API)        │
+  │  Azure Resource Graph    →  resource inventory (KQL)             │
+  │  Azure Advisor           →  Cost + security recommendations      │
+  │  Azure OpenAI            →  gpt-4.1-nano (AI chat)               │
+  │  Azure Container Registry→  Docker image storage                 │
+  │  Azure Key Vault         →  secret management (RBAC mode)        │
+  │  Managed Identity        →  passwordless auth to Azure APIs      │
+  └──────────────────────────────────────────────────────────────────┘
 
 Identity & Auth Flow:
   AKS Pod  →  OIDC Token  →  Entra ID  →  Managed Identity
@@ -102,6 +100,17 @@ Identity & Auth Flow:
                                            Resource Graph Reader +
                                            Key Vault Secrets User +
                                            OpenAI User)
+
+Cloud Provider Extensibility (Platform API):
+  CLOUD_PROVIDER=azure  →  providers/azure.py   ✅ implemented
+  CLOUD_PROVIDER=aws    →  providers/aws.py      🔲 stub ready (boto3)
+  CLOUD_PROVIDER=gcp    →  providers/gcp.py      🔲 stub ready (google-cloud-billing)
+
+OpenCost Multi-Cloud (optional — see 5-opencost/README.md):
+  Azure AKS   →  native (this repo)
+  AWS EKS     →  set cloudProvider: aws + AWS pricing secret
+  GCP GKE     →  set cloudProvider: gcp + GCP pricing secret
+  On-prem K8s →  set cloudProvider: custom + custom pricing CSV
 ```
 
 ### Network Layout
@@ -138,6 +147,9 @@ finops-dashborad/
 ├── sanity-check/
 │   └── sanity.sh                    # Post-deploy health check script
 │
+├── k8s/
+│   └── ingress.yaml                 # Shared NGINX Ingress + TLS for all services
+│
 ├── 1-infrastructure/
 │   └── scripts/
 │       ├── setup.sh                 # Full Azure infrastructure provisioner
@@ -146,6 +158,7 @@ finops-dashborad/
 ├── 2-platform-api/                  # FastAPI backend — data sync & REST API
 │   ├── Dockerfile
 │   ├── requirements.txt
+│   ├── TROUBLESHOOTING.md
 │   ├── k8s/
 │   │   └── deployment.yaml          # Namespace, Deployment, Service, HPA
 │   └── src/
@@ -155,36 +168,48 @@ finops-dashborad/
 │       ├── notifications.py         # Email alerts (cost spikes, digests, budgets)
 │       └── providers/
 │           ├── base.py              # Abstract CloudProvider interface
-│           └── azure.py             # Azure implementation (Cost Mgmt, RG, Advisor)
+│           ├── azure.py             # Azure implementation (Cost Mgmt, RG, Advisor)
+│           ├── aws.py               # 🔲 AWS stub (boto3 / Cost Explorer)
+│           └── gcp.py               # 🔲 GCP stub (google-cloud-billing)
 │
 ├── 3-ai-agent/                      # LangGraph ReAct agent — natural language Q&A
 │   ├── Dockerfile
 │   ├── requirements.txt
+│   ├── TROUBLESHOOTING.md
 │   ├── k8s/
 │   │   └── deployment.yaml          # Namespace, SA, Deployment, Service
 │   └── src/
-│       └── main.py                  # FastAPI wrapper + LangGraph agent + tools
+│       └── main.py                  # FastAPI wrapper + LangGraph agent + 9 tools
 │
-└── 4-dashboard/                     # Streamlit multi-page dashboard
-    ├── Dockerfile
-    ├── requirements.txt
-    ├── k8s/
-    │   └── deployment.yaml          # Namespace, Deployment, Service
-    └── src/
-        ├── Home.py                  # Overview: KPIs, daily trend, top services
-        ├── auth.py                  # Login wall, bcrypt auth, sidebar user chip
-        ├── users.yaml.template      # Copy → users.yaml and fill in
-        ├── .streamlit/
-        │   └── config.toml          # Dark theme, server settings
-        ├── pages/
-        │   ├── 1_Costs.py           # Full cost analysis (trend, service, RG, sub)
-        │   ├── 2_Resources.py       # Resource inventory (type, location breakdown)
-        │   ├── 3_Advisor.py         # Advisor recommendations with savings cards
-        │   ├── 4_AI_Chat.py         # AI assistant chat interface
-        │   └── 5_Settings.py        # Admin: manual sync, email tests, health
-        └── utils/
-            ├── api.py               # HTTP client for Platform API + AI Agent
-            └── theme.py             # Dark CSS + Plotly dark template
+├── 4-dashboard/                     # Streamlit multi-page dashboard
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   ├── TROUBLESHOOTING.md
+│   ├── k8s/
+│   │   └── deployment.yaml          # Namespace, Deployment, Service
+│   └── src/
+│       ├── Home.py                  # Overview: KPIs, daily trend, top services
+│       ├── auth.py                  # Login wall — local/oauth/ldap (AUTH_MODE)
+│       ├── users.yaml.template      # Copy → users.yaml and fill in
+│       ├── .streamlit/
+│       │   └── config.toml          # Dark theme, server settings
+│       ├── pages/
+│       │   ├── 1_Costs.py           # Full cost analysis (8 tabs inc. MoM)
+│       │   ├── 2_Resources.py       # Resource inventory + type drill-down
+│       │   ├── 3_Advisor.py         # 7-tab Advisor intelligence centre
+│       │   ├── 4_AI_Chat.py         # AI assistant chat interface
+│       │   └── 5_Settings.py        # Admin: manual sync, email tests, health
+│       └── utils/
+│           ├── api.py               # HTTP client for Platform API + AI Agent
+│           ├── currency.py          # Currency conversion + formatting helpers
+│           └── theme.py             # Dark CSS + Plotly dark template
+│
+└── 5-opencost/                      # OPTIONAL: K8s-native cost allocation (OpenCost)
+    ├── README.md                    # Full deploy guide (DNS → Prometheus → Helm)
+    ├── TROUBLESHOOTING.md           # Common issues + recovery
+    └── k8s/
+        ├── helm-values.yaml         # Helm values (Azure pricing, Prometheus config)
+        └── ingress.yaml             # Ingress for opencost.manmas.online
 ```
 
 ---
@@ -866,9 +891,11 @@ kubectl get svc -n ingress-nginx ingress-nginx-controller --watch
 In your DNS provider (wherever `manmas.online` is managed), create **A records**:
 
 ```
-app.manmas.online   →  <EXTERNAL-IP>
-api.manmas.online   →  <EXTERNAL-IP>
-ai.manmas.online    →  <EXTERNAL-IP>
+app.manmas.online        →  <EXTERNAL-IP>   # FinOps Dashboard
+api.manmas.online        →  <EXTERNAL-IP>   # Platform API
+ai.manmas.online         →  <EXTERNAL-IP>   # AI Agent
+opencost.manmas.online   →  <EXTERNAL-IP>   # OpenCost official UI    (optional — 5-opencost)
+k8scost.manmas.online    →  <EXTERNAL-IP>   # K8s Cost Dashboard      (optional — 5-opencost/dashboard)
 ```
 
 > Let's Encrypt's HTTP-01 challenge requires DNS to resolve **before** you apply
@@ -1174,11 +1201,12 @@ nslookup app.manmas.online
 | Page | Icon | Description |
 |---|---|---|
 | Home | ⚡ | KPI cards, Cost Summary, Savings Summary, Sankey cost flow, daily trend with anomaly detection, efficiency scorecard |
-| Costs | 💰 | 8 tabs: Daily Trend, By Service, By Subscription, By RG, Storage, Network, Savings Leaderboard, **MoM Comparison** |
-| Resources | 🖥️ | Inventory with type/location/RG filters; Watch List (idle/orphaned); untagged resource report |
-| Advisor | 💡 | Impact-sorted recommendations with savings cards; Rightsizing Panel with per-resource bar chart |
-| AI Chat | 🤖 | Context-aware Q&A; Explain the Bill prompts; Optimization tips — backed by live API data |
+| Costs | 💰 | 8 tabs: Daily Trend, By Service, By Subscription, By RG, Storage, Network, Savings Leaderboard, MoM Comparison |
+| Resources | 🖥️ | Inventory with type/location/RG filters; type drill-down (see every resource by type); Watch List (idle/orphaned); untagged report |
+| Advisor | 💡 | 7-tab intelligence centre: Priority Matrix, All Recs, Savings Leaderboard, By RG, Rightsizing, Advisor Score radar, 12-month ROI |
+| AI Chat | 🤖 | Context-aware Q&A; Explain the Bill prompts; Optimization tips — backed by live Platform API data |
 | Settings | ⚙️ | Manual sync, email alert testing, system health (admin only) |
+| OpenCost (separate) | 💸 | **OPTIONAL** — Standalone K8s cost dashboard at `k8scost.manmas.online`; see `5-opencost/` |
 
 ### Home Page — What Each Section Does
 
@@ -1316,9 +1344,13 @@ Running this platform on the chosen SKUs costs approximately:
 | ACR | Basic | ~$5 |
 | Key Vault | Standard | <$1 |
 | VNet / DNS | — | ~$2 |
-| **Total** | | **~$55-60/month** |
+| **Core Total** | | **~$55-60/month** |
+| _(optional) Prometheus_ | 8 Gi PVC + ~100m CPU | ~$3-5/month |
+| _(optional) OpenCost_ | ~50m CPU / 64 Mi | <$1/month |
+| **With OpenCost** | | **~$60-65/month** |
 
 Adding a Spot node pool for the AI agent can reduce costs further. The AKS free tier is used (no SLA charge).
+OpenCost itself is free and open-source; the only added cost is the Prometheus persistent volume for storing K8s metrics.
 
 ---
 
@@ -1332,6 +1364,7 @@ Adding a Spot node pool for the AI agent can reduce costs further. The AKS free 
 | Platform API | [2-platform-api/TROUBLESHOOTING.md](2-platform-api/TROUBLESHOOTING.md) | CrashLoopBackOff, DB connection, data sync 0 rows, email notifications |
 | AI Agent | [3-ai-agent/TROUBLESHOOTING.md](3-ai-agent/TROUBLESHOOTING.md) | OpenAI auth, tool errors, context not working, LangChain version conflicts |
 | Dashboard | [4-dashboard/TROUBLESHOOTING.md](4-dashboard/TROUBLESHOOTING.md) | Login failures, data not showing, Docker build, TLS, AI chat offline |
+| OpenCost (opt.) | [5-opencost/TROUBLESHOOTING.md](5-opencost/TROUBLESHOOTING.md) | Pod crash, Prometheus unreachable, iframe X-Frame-Options, no cost data |
 
 Step-specific troubleshooting (inline `<details>` blocks) also appears after each setup step above.
 

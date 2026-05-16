@@ -1,0 +1,35 @@
+# OpenCost Helm values — FinOps Platform (manmas.online)
+# OPTIONAL COMPONENT
+#
+# Usage:
+#   helm install opencost opencost/opencost \
+#     --namespace opencost --create-namespace \
+#     -f 5-opencost/k8s/helm-values.yaml
+
+opencost:
+  # ── Azure cloud pricing ──────────────────────────────────────────────────
+  cloudProvider: azure
+
+  # ── Prometheus endpoint (installed in same namespace, Step 1) ───────────
+  prometheus:
+    external:
+      enabled: false
+    internal:
+      enabled: true
+      # Points to the prometheus-server service installed in Step 1
+      namespaceName: opencost
+      port: 80
+      serviceName: prometheus-server
+
+  # ── UI / API ─────────────────────────────────────────────────────────────
+  ui:
+    enabled: true
+
+  # ── Resource requests ────────────────────────────────────────────────────
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
