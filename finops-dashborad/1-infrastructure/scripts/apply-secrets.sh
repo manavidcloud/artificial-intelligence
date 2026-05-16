@@ -254,6 +254,118 @@ for NS_SA in "platform/cost-platform-sa" "ai/cost-ai-sa"; do
 done
 
 # ---------------------------------------------------------------------------
+# STEP 6 — Store secrets in Azure Key Vault (canonical source of truth)
+# ---------------------------------------------------------------------------
+banner "STEP 6 — Azure Key Vault Secret Storage"
+
+KV_NAME="kv-finops-prod00"
+KV_RG="rg-finops-prod-security"
+
+info "Checking Key Vault: ${KV_NAME}"
+KV_ID=$(az keyvault show --name "$KV_NAME" --resource-group "$KV_RG" \
+  --query id -o tsv 2>/dev/null) \
+  || err "Cannot reach Key Vault '${KV_NAME}'. Ensure setup.sh ran successfully."
+
+# Auto-assign Key Vault Secrets Officer to the current caller if missing.
+# The caller needs this to write secrets — it is NOT the same as the MI's Secrets User role.
+CALLER_OID=$(az ad signed-in-user show --query id -o tsv 2>/dev/null || echo "")
+if [[ -z "$CALLER_OID" ]]; then
+  CALLER_APP=$(az account show --query user.name -o tsv 2>/dev/null || echo "")
+  [[ -n "$CALLER_APP" ]] && \
+    CALLER_OID=$(az ad sp show --id "$CALLER_APP" --query id -o tsv 2>/dev/null || echo "")
+fi
+
+if [[ -n "$CALLER_OID" ]]; then
+  role_count=$(az role assignment list \
+    --assignee "$CALLER_OID" \
+    --role "Key Vault Secrets Officer" \
+    --scope "$KV_ID" \
+    --query "length(@)" -o tsv 2>/dev/null || echo 0)
+  if [[ "${role_count:-0}" -gt 0 ]]; then
+    ok "Caller already has 'Key Vault Secrets Officer' on ${KV_NAME}"
+  else
+    info "Assigning 'Key Vault Secrets Officer' to caller on ${KV_NAME}..."
+    az role assignment create \
+      --role "Key Vault Secrets Officer" \
+      --assignee-object-id "$CALLER_OID" \
+      --scope "$KV_ID" \
+      --query id -o tsv
+    info "Waiting 20 s for RBAC propagation..."
+    sleep 20
+  fi
+else
+  warn "Could not determine caller OID — skipping Secrets Officer check. If writes fail, run manually:
+  az role assignment create --role 'Key Vault Secrets Officer' --assignee <your-object-id> --scope ${KV_ID}"
+fi
+
+kv_set() {
+  local name="$1"
+  local value="$2"
+  if [[ -n "$value" ]]; then
+    existing=$(az keyvault secret show \
+      --vault-name "$KV_NAME" --name "$name" \
+      --query value -o tsv 2>/dev/null || echo "")
+    if [[ "$existing" == "$value" ]]; then
+      echo -e "${CYAN}[SKIP]  KV secret already up-to-date: ${name}${RESET}"
+    else
+      az keyvault secret set \
+        --vault-name "$KV_NAME" \
+        --name        "$name" \
+        --value       "$value" \
+        --query       "id" -o tsv
+      ok "KV secret stored: ${name}"
+    fi
+  else
+    warn "Skipping empty secret: ${name}"
+  fi
+}
+
+# Required secrets
+kv_set "db-host"                  "${DB_HOST}"
+kv_set "db-name"                  "${DB_NAME}"
+kv_set "db-user"                  "${DB_USER}"
+kv_set "db-password"              "${DB_PASSWORD}"
+kv_set "azure-openai-endpoint"    "${AZURE_OPENAI_ENDPOINT}"
+kv_set "azure-openai-deployment"  "${AZURE_OPENAI_DEPLOYMENT}"
+kv_set "mi-client-id"             "${MI_CLIENT_ID}"
+kv_set "azure-subscription-ids"   "${AZURE_SUBSCRIPTION_IDS}"
+
+# Optional secrets — only stored if set
+[[ -n "${AZURE_OPENAI_API_KEY:-}" ]] && kv_set "azure-openai-api-key" "${AZURE_OPENAI_API_KEY}"
+[[ -n "${LANGSMITH_API_KEY:-}" ]]    && kv_set "langsmith-api-key"    "${LANGSMITH_API_KEY}"
+[[ -n "${SMTP_HOST:-}" ]]            && kv_set "smtp-host"            "${SMTP_HOST}"
+[[ -n "${SMTP_PORT:-}" ]]            && kv_set "smtp-port"            "${SMTP_PORT}"
+[[ -n "${SMTP_USER:-}" ]]            && kv_set "smtp-user"            "${SMTP_USER}"
+[[ -n "${SMTP_PASSWORD:-}" ]]        && kv_set "smtp-password"        "${SMTP_PASSWORD}"
+[[ -n "${SMTP_FROM:-}" ]]            && kv_set "smtp-from"            "${SMTP_FROM}"
+[[ -n "${ALERT_RECIPIENTS:-}" ]]     && kv_set "alert-recipients"     "${ALERT_RECIPIENTS}"
+[[ -n "${OAUTH_CLIENT_ID:-}" ]]      && kv_set "oauth-client-id"      "${OAUTH_CLIENT_ID}"
+[[ -n "${OAUTH_CLIENT_SECRET:-}" ]]  && kv_set "oauth-client-secret"  "${OAUTH_CLIENT_SECRET}"
+
+ok "All secrets stored in Key Vault: ${KV_NAME}"
+
+# ---------------------------------------------------------------------------
+# STEP 7 — Apply SecretProviderClass (CSI driver pulls KV → K8s secrets)
+# ---------------------------------------------------------------------------
+banner "STEP 7 — SecretProviderClass (Key Vault CSI)"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+SPC_TEMPLATE="${PROJECT_ROOT}/k8s/secret-provider-class.yaml"
+
+if [[ -f "$SPC_TEMPLATE" ]]; then
+  TENANT_ID=$(az account show --query tenantId -o tsv)
+  info "Rendering and applying SecretProviderClass from: ${SPC_TEMPLATE}"
+  # Substitute MI_CLIENT_ID and TENANT_ID placeholders
+  MI_CLIENT_ID="${MI_CLIENT_ID}" TENANT_ID="${TENANT_ID}" \
+    envsubst '${MI_CLIENT_ID} ${TENANT_ID}' < "$SPC_TEMPLATE" \
+    | kubectl apply -f -
+  ok "SecretProviderClass applied."
+else
+  warn "k8s/secret-provider-class.yaml not found — skipping CSI sync. Kubernetes secrets are still usable."
+fi
+
+# ---------------------------------------------------------------------------
 # Done
 # ---------------------------------------------------------------------------
 banner "ALL DONE"
@@ -266,10 +378,15 @@ ${GREEN}============================================================${RESET}
 
 Namespaces created : ${NAMESPACES[*]}
 
-Kubernetes secrets:
+Kubernetes secrets (direct):
   platform/finops-platform-secret
   ai/finops-ai-secret
   frontend/finops-frontend-secret
+
+Key Vault secrets (canonical):
+  https://${KV_NAME}.vault.azure.net/secrets/db-password
+  https://${KV_NAME}.vault.azure.net/secrets/azure-openai-api-key
+  ... (view all: az keyvault secret list --vault-name ${KV_NAME})
 
 Workload Identity service accounts:
   platform/cost-platform-sa  → MI_CLIENT_ID=${MI_CLIENT_ID}
@@ -277,7 +394,7 @@ Workload Identity service accounts:
 
 Next steps:
   kubectl get secrets -A
+  kubectl get secretproviderclass -A
   kubectl get serviceaccounts -A
-  helm install ... (deploy your platform charts)
 
 EOF

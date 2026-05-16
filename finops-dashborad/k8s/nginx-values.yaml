@@ -1,0 +1,83 @@
+# =============================================================================
+# NGINX Ingress Controller — Helm values for Azure AKS
+# =============================================================================
+#
+# Usage:
+#   helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+#   helm repo update
+#   helm install ingress-nginx ingress-nginx/ingress-nginx \
+#     --namespace ingress-nginx --create-namespace \
+#     --values k8s/nginx-values.yaml
+#
+# To upgrade an existing install:
+#   helm upgrade ingress-nginx ingress-nginx/ingress-nginx \
+#     --namespace ingress-nginx \
+#     --values k8s/nginx-values.yaml
+# =============================================================================
+
+controller:
+  # ── Azure Load Balancer configuration ─────────────────────────────────────
+  service:
+    # Standard SKU is required for:
+    #   - Availability zones
+    #   - Cross-zone load balancing
+    #   - HTTPS health probes (used by cert-manager HTTP-01 challenge)
+    # Basic SKU does NOT support the health probe path annotation.
+    annotations:
+      service.beta.kubernetes.io/azure-load-balancer-health-probe-request-path: /healthz
+      # Standard SKU required — Basic LB does not support HTTPS probes or AZs
+      service.beta.kubernetes.io/azure-load-balancer-sku: "standard"
+      # Keep client source IP in X-Forwarded-For (needed for audit logs)
+      service.beta.kubernetes.io/azure-load-balancer-tcp-idle-timeout: "4"
+
+    # Local policy preserves the client's real IP address.
+    # Required for correct X-Forwarded-For headers and Azure LB health probes.
+    externalTrafficPolicy: Local
+
+  # ── NGINX global config ───────────────────────────────────────────────────
+  config:
+    # Trust X-Forwarded-* headers from Azure LB
+    use-forwarded-headers: "true"
+    compute-full-forwarded-for: "true"
+    use-proxy-protocol: "false"
+
+    # HTTP/1.1 required for WebSocket upgrade (Streamlit live updates)
+    proxy-http-version: "1.1"
+
+    # Default timeouts — individual Ingresses override per-service via annotations
+    proxy-read-timeout: "120"
+    proxy-send-timeout: "120"
+    proxy-connect-timeout: "10"
+
+    # Allow larger bodies for sync payloads (10 MB)
+    proxy-body-size: "10m"
+
+    # Security headers applied to all responses
+    add-headers: "ingress-nginx/custom-headers"
+
+    # Enable HSTS (browsers remember HTTPS-only for 1 year)
+    hsts: "true"
+    hsts-max-age: "31536000"
+    hsts-include-subdomains: "true"
+
+    # Log format includes upstream timing for performance debugging
+    log-format-escape-json: "true"
+    log-format-upstream: >
+      {"time":"$time_iso8601","remote_addr":"$remote_addr",
+      "x_forwarded_for":"$http_x_forwarded_for","request_id":"$req_id",
+      "status":$status,"request":"$request","upstream_addr":"$upstream_addr",
+      "upstream_status":"$upstream_status","request_time":$request_time,
+      "upstream_response_time":"$upstream_response_time"}
+
+  # ── Metrics (optional — connect to Prometheus later) ─────────────────────
+  metrics:
+    enabled: false   # set true if you have Prometheus installed
+
+  # ── Resource limits ───────────────────────────────────────────────────────
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi

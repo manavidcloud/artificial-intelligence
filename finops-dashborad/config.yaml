@@ -1,3 +1,101 @@
+# # =============================================================================
+# # FinOps Platform — Master Configuration File
+# # EDIT THIS FILE ONLY. All scripts and deployments read from here.
+# # =============================================================================
+
+# cloud:
+#   provider: azure          # azure | aws (future) | gcp (future)
+
+# azure:
+#   subscription_ids:
+#     - "REPLACE_WITH_SUBSCRIPTION_ID"   # az account show --query id -o tsv
+
+#   tenant_id: "REPLACE_WITH_TENANT_ID" # az account show --query tenantId -o tsv
+
+#   location:    "centralindia"          # Region for AKS, ACR, PostgreSQL, Key Vault
+#   ai_location: "southindia"           # Azure OpenAI (separate region)
+
+#   resource_groups:
+#     network:  "rg-finops-prod-network"   # VNet, Subnets, NSGs, Private DNS Zones
+#     core:     "rg-finops-prod-core"      # AKS, ACR, Managed Identity
+#     security: "rg-finops-prod-security"  # Key Vault (isolated for least-privilege)
+#     data:     "rg-finops-prod-data"      # PostgreSQL Flexible Server
+#     ai:       "rg-finops-prod-ai"        # Azure OpenAI
+
+#   names:
+#     aks:               "finops-aks"
+#     acr:               "finopsacr"           # Globally unique, lowercase, no hyphens
+#     postgres:          "finops-pgflex"
+#     key_vault:         "kv-finops-prod00"     # Globally unique
+#     managed_identity:  "mi-finops-prod"
+#     openai_resource:   "finops-ai-brain"
+#     openai_deployment: "gpt-4o-mini"
+
+#   aks:
+#     system_node_size:   "Standard_B2als_v2"  # Free-tier compatible
+#     spot_node_size:     "Standard_D2pds_v6"  # For AI/worker jobs
+#     kubernetes_version: "1.32"
+
+#   postgres:
+#     sku:      "Standard_B1ms"            # Burstable (low cost)
+#     storage:  32                         # GB
+#     version:  "16"
+#     admin:    "pgadmin"
+#     db_name:  "finops-db"
+
+# networking:
+#   vnet_name: "finops-prod-vnet"
+#   vnet_cidr: "10.0.0.0/16"
+
+#   subnets:
+#     aks:      { name: "aks-subnet",      cidr: "10.0.2.0/24" }
+#     postgres: { name: "postgres-subnet", cidr: "10.0.1.0/24" }
+#     reserved: { name: "general-subnet",  cidr: "10.0.0.0/24" }
+
+#   aks_service_cidr:   "10.96.0.0/16"
+#   aks_dns_service_ip: "10.96.0.10"
+
+# domain:
+#   base: "manmas.online"
+#   app:  "app.manmas.online"
+#   api:  "api.manmas.online"
+#   ai:   "ai.manmas.online"
+
+# kubernetes:
+#   namespaces:
+#     - platform
+#     - ai
+#     - frontend
+#     - security
+#     - monitoring
+
+#   service_accounts:
+#     platform: "cost-platform-sa"
+#     ai:       "cost-ai-sa"
+
+#   images:
+#     platform_api: "finops-platform-api"
+#     ai_agent:     "finops-ai-agent"
+#     dashboard:    "finops-dashboard"
+
+# ai:
+#   model:       "gpt-4o-mini"
+#   api_version: "2024-08-01-preview"
+#   temperature: 0
+
+# sync:
+#   cost_history_days:    30
+#   sync_interval_hours:  6
+
+
+
+
+
+
+
+
+
+
 # =============================================================================
 # FinOps Platform — Master Configuration File
 # EDIT THIS FILE ONLY. All scripts and deployments read from here.
@@ -8,9 +106,9 @@ cloud:
 
 azure:
   subscription_ids:
-    - "REPLACE_WITH_SUBSCRIPTION_ID"   # az account show --query id -o tsv
+    - "3ab4323c-e2ad-449e-ab64-565b17412d8f"   # az account show --query id -o tsv
 
-  tenant_id: "REPLACE_WITH_TENANT_ID" # az account show --query tenantId -o tsv
+  tenant_id: "32994654-d21d-478c-b507-74508e61c4fa" # az account show --query tenantId -o tsv
 
   location:    "centralindia"          # Region for AKS, ACR, PostgreSQL, Key Vault
   ai_location: "southindia"           # Azure OpenAI (separate region)
@@ -24,9 +122,9 @@ azure:
 
   names:
     aks:               "finops-aks"
-    acr:               "finopsacr"           # Globally unique, lowercase, no hyphens
+    acr:               "finopsacrmanmas"           # Globally unique, lowercase, no hyphens
     postgres:          "finops-pgflex"
-    key_vault:         "kv-finops-prod"      # Globally unique
+    key_vault:         "kv-finops-prod00"     # Globally unique
     managed_identity:  "mi-finops-prod"
     openai_resource:   "finops-ai-brain"
     openai_deployment: "gpt-4o-mini"

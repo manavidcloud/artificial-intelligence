@@ -277,6 +277,7 @@ All emails use an HTML dark-theme / glassmorphism template matching the dashboar
 
 You also need:
 - An **Azure subscription** with Owner or Contributor + User Access Administrator rights
+- **Key Vault Secrets Officer** role on the Key Vault (auto-assigned by `apply-secrets.sh` for the caller)
 - **Azure OpenAI access** approved for your subscription (request at aka.ms/oai/access)
 - A domain name pointing to your AKS ingress IP (optional — you can use `kubectl port-forward` instead)
 
@@ -296,8 +297,8 @@ azure:
   location: "centralindia"       # change to your preferred region
   ai_location: "southindia"      # must support Azure OpenAI
   names:
-    acr: "finopsacr"             # globally unique, lowercase, no hyphens
-    key_vault: "kv-finops-prod"  # globally unique
+    acr: "finopsacrmanmas"        # globally unique, lowercase, no hyphens
+    key_vault: "kv-finops-prod00" # globally unique
 ```
 
 All scripts read from these hardcoded variables (they mirror `config.yaml` so you only need to edit one place).
@@ -326,18 +327,19 @@ chmod +x 1-infrastructure/scripts/setup.sh
 | 2 | Managed Identity | `mi-finops-prod` with Cost Reader + Reader roles |
 | 3 | VNet + 3 Subnets | 10.0.0.0/16, AKS subnet, Postgres subnet |
 | 4 | Private DNS Zone | `finops-pgflex.private.postgres.database.azure.com` |
-| 5 | Azure Container Registry | Basic SKU, no admin credentials |
-| 6 | AKS Cluster | 1 node, Standard_B2als_v2, Workload Identity enabled |
-| 7 | ACR → AKS | Attach ACR so AKS can pull images without credentials |
-| 8 | Key Vault | RBAC mode, 7-day soft delete |
-| 9 | PostgreSQL Flex | Burstable B1ms, 32 GB, private VNet, pgvector enabled |
+| 5 | Azure Container Registry | `finopsacrmanmas`, Basic SKU, no admin credentials |
+| 6 | AKS Cluster | System node (Standard_B2als_v2), KEDA enabled, Workload Identity |
+| 6b | App Node Pool | `apppool`, Standard_D2pds_v6, User mode (for workloads) |
+| 7 | ACR → AKS | AcrPull role assigned directly to kubelet identity |
+| 8 | Key Vault | `kv-finops-prod00`, RBAC mode, 7-day soft delete |
+| 9 | PostgreSQL Flex | Burstable B1ms, 32 GB, private VNet, pgvector — password stored to KV immediately |
 | 10 | Azure OpenAI | gpt-4.1-nano deployed as `gpt-4o-mini` |
 | 11 | AKS Kubeconfig | Sets local kubectl context |
 | 12 | OIDC Issuer | Retrieved for Workload Identity federation |
 | 13 | Federated Credentials | Links `cost-platform-sa` and `cost-ai-sa` to Managed Identity |
-| 14 | Summary | Prints all values needed for `secrets.env` |
+| 14 | Summary | Prints all connection values |
 
-At the end, the script prints all secrets you need. **Copy them before the terminal closes.**
+> **Idempotent** — re-running `setup.sh` is safe. Each step checks whether the resource already exists and skips creation if it does, validating key properties (location, CIDR, SKU) and warning on any mismatch.
 
 ---
 
@@ -355,7 +357,7 @@ Minimum required values:
 DB_HOST=finops-pgflex.postgres.database.azure.com
 DB_NAME=finops-db
 DB_USER=pgadmin
-DB_PASSWORD=<from setup.sh output>
+DB_PASSWORD=<configured in setup.sh as POSTGRES_PASSWORD>
 
 AZURE_OPENAI_ENDPOINT=https://finops-ai-brain.openai.azure.com/
 AZURE_OPENAI_DEPLOYMENT=gpt-4o-mini
@@ -380,12 +382,14 @@ ALERT_RECIPIENTS=you@gmail.com,team@company.com
 
 ### Step 4 — Apply Kubernetes Secrets
 
-This script reads `secrets.env` and creates Kubernetes namespaces, secrets, and service accounts:
+This script reads `secrets.env` and creates Kubernetes namespaces, secrets, and service accounts. It is idempotent — re-running skips anything already in the correct state:
 
 ```bash
 chmod +x 1-infrastructure/scripts/apply-secrets.sh
 ./1-infrastructure/scripts/apply-secrets.sh
 ```
+
+> The script auto-assigns **Key Vault Secrets Officer** to the current caller if missing — no manual role assignment needed.
 
 **What it creates:**
 
@@ -410,9 +414,9 @@ kubectl get serviceaccounts -n ai
 
 ```bash
 # Log in to ACR
-az acr login --name finopsacr
+az acr login --name finopsacrmanmas
 
-ACR="finopsacr.azurecr.io"
+ACR="finopsacrmanmas.azurecr.io"
 
 # Platform API
 docker build -t $ACR/finops-platform-api:latest 2-platform-api/
@@ -462,84 +466,151 @@ frontend     finops-dashboard-xxx       1/1   Running
 
 ---
 
-### Step 7 — Expose via Ingress
+### Step 7 — Expose via Ingress + TLS (Let's Encrypt)
 
-**Option A: kubectl port-forward (local testing)**
+**Option A: kubectl port-forward (local/dev testing — no TLS needed)**
 
 ```bash
 # Dashboard
 kubectl port-forward -n frontend svc/finops-dashboard-svc 8501:80
 # Open: http://localhost:8501
 
-# Platform API (optional, for direct API access)
+# Platform API (Swagger UI)
 kubectl port-forward -n platform svc/finops-platform-api-svc 8080:80
 # Open: http://localhost:8080/docs
 ```
 
-**Option B: NGINX Ingress (production)**
+---
 
-Install NGINX Ingress Controller:
+**Option B: NGINX Ingress + Let's Encrypt TLS (production)**
+
+TLS certificates are provisioned automatically by **cert-manager** using the
+Let's Encrypt ACME protocol (HTTP-01 challenge). cert-manager watches Ingress
+objects, requests a certificate from Let's Encrypt, stores it as a Kubernetes
+Secret, and renews it ~30 days before expiry — no manual intervention needed.
+
+```
+Browser  →  HTTPS (port 443)  →  NGINX Ingress (TLS termination)
+                                  cert-manager ←→ Let's Encrypt ACME
+                                  (auto-renews every 60 days)
+         →  HTTP (pod-to-pod, inside cluster)
+```
+
+#### 7a — Install NGINX Ingress Controller
+
 ```bash
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm repo update
+
 helm install ingress-nginx ingress-nginx/ingress-nginx \
-  --namespace ingress-nginx --create-namespace \
-  --set controller.service.annotations."service\.beta\.kubernetes\.io/azure-load-balancer-health-probe-request-path"=/healthz
+  --namespace ingress-nginx \
+  --create-namespace \
+  --set controller.service.annotations."service\.beta\.kubernetes\.io/azure-load-balancer-health-probe-request-path"=/healthz \
+  --set controller.service.externalTrafficPolicy=Local
 ```
 
-Get the external IP:
+Get the public IP assigned to the LoadBalancer (takes ~2 minutes):
 ```bash
-kubectl get svc -n ingress-nginx ingress-nginx-controller
+kubectl get svc -n ingress-nginx ingress-nginx-controller --watch
+# Copy the EXTERNAL-IP once it appears (not <pending>)
 ```
 
-Point your DNS A records to that IP:
+#### 7b — Point DNS to the Ingress IP
+
+In your DNS provider (wherever `manmas.online` is managed), create **A records**:
+
 ```
-app.manmas.online  → <EXTERNAL-IP>
-api.manmas.online  → <EXTERNAL-IP>
-ai.manmas.online   → <EXTERNAL-IP>
+app.manmas.online   →  <EXTERNAL-IP>
+api.manmas.online   →  <EXTERNAL-IP>
+ai.manmas.online    →  <EXTERNAL-IP>
 ```
 
-Apply Ingress:
-```yaml
-# Save as ingress.yaml and kubectl apply -f ingress.yaml
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: finops-ingress
-  namespace: frontend
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
-spec:
-  ingressClassName: nginx
-  rules:
-    - host: app.manmas.online
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: finops-dashboard-svc
-                port:
-                  number: 80
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: finops-api-ingress
-  namespace: platform
-spec:
-  ingressClassName: nginx
-  rules:
-    - host: api.manmas.online
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: finops-platform-api-svc
-                port:
-                  number: 80
+> Let's Encrypt's HTTP-01 challenge requires DNS to resolve **before** you apply
+> the Ingress with TLS. Wait for DNS propagation (`nslookup app.manmas.online`).
+
+#### 7c — Install cert-manager
+
+cert-manager handles certificate lifecycle automatically inside the cluster.
+
+```bash
+helm repo add jetstack https://charts.jetstack.io
+helm repo update
+
+helm install cert-manager jetstack/cert-manager \
+  --namespace cert-manager \
+  --create-namespace \
+  --set installCRDs=true \
+  --version v1.15.0
+```
+
+Verify cert-manager pods are running:
+```bash
+kubectl get pods -n cert-manager
+# Expected: cert-manager, cert-manager-cainjector, cert-manager-webhook — all Running
+```
+
+#### 7d — Create ClusterIssuers (staging first, then production)
+
+Always test with **staging** first — Let's Encrypt production has strict rate limits
+(5 failed certificates per domain per hour). Staging certs are not trusted by
+browsers but are functionally identical.
+
+```bash
+kubectl apply -f k8s/ingress.yaml
+```
+
+The file `k8s/ingress.yaml` (included in this repo) contains:
+- `ClusterIssuer` — letsencrypt-staging
+- `ClusterIssuer` — letsencrypt-prod
+- `Ingress` — dashboard (app.manmas.online) with TLS
+- `Ingress` — Platform API (api.manmas.online) with TLS
+- `Ingress` — AI Agent (ai.manmas.online) with TLS
+
+**Test with staging first:**
+
+Edit `k8s/ingress.yaml` — all three Ingress objects default to
+`letsencrypt-staging`. Apply and wait for the certificate:
+
+```bash
+kubectl apply -f k8s/ingress.yaml
+
+# Watch certificate status (takes 30-90 seconds)
+kubectl get certificate -A --watch
+# Wait for READY = True
+
+# Inspect if it gets stuck
+kubectl describe certificaterequest -n frontend
+kubectl describe order -n frontend
+```
+
+Once staging works, switch to production:
+```bash
+# Change all occurrences of letsencrypt-staging → letsencrypt-prod in k8s/ingress.yaml
+sed -i 's/letsencrypt-staging/letsencrypt-prod/g' k8s/ingress.yaml
+
+# Delete the old staging certs so cert-manager re-issues them
+kubectl delete secret finops-dashboard-tls    -n frontend
+kubectl delete secret finops-platform-api-tls -n platform
+kubectl delete secret finops-ai-agent-tls     -n ai
+
+kubectl apply -f k8s/ingress.yaml
+```
+
+After ~60 seconds, your sites will have valid, browser-trusted HTTPS:
+```
+https://app.manmas.online   →  FinOps Dashboard
+https://api.manmas.online   →  Platform API (Swagger at /docs)
+https://ai.manmas.online    →  AI Agent health check
+```
+
+#### Certificate Renewal
+
+cert-manager automatically renews certificates ~30 days before expiry (Let's
+Encrypt certs are valid for 90 days). No action needed. To check renewal status:
+
+```bash
+kubectl get certificate -A
+kubectl describe certificate finops-dashboard-tls -n frontend
 ```
 
 ---
@@ -694,6 +765,48 @@ kubectl get sa cost-platform-sa -n platform -o yaml | grep azure.workload
 ### Images not pulling from ACR
 
 ```bash
-# Re-attach ACR to AKS
-az aks update --name finops-aks --resource-group rg-finops-prod-core --attach-acr finopsacr
+# Re-grant AcrPull to AKS kubelet identity (setup.sh uses direct role assignment, not az aks update)
+ACR_ID=$(az acr show --name finopsacrmanmas --resource-group rg-finops-prod-core --query id -o tsv)
+KUBELET_OID=$(az aks show --name finops-aks --resource-group rg-finops-prod-core \
+  --query "identityProfile.kubeletidentity.objectId" -o tsv)
+az role assignment create --role AcrPull --assignee-object-id "$KUBELET_OID" \
+  --assignee-principal-type ServicePrincipal --scope "$ACR_ID"
+```
+
+### TLS certificate stuck in Pending / not issuing
+
+cert-manager uses HTTP-01 challenge — it temporarily serves a token at
+`http://<domain>/.well-known/acme-challenge/<token>`. This requires:
+
+1. DNS resolves to the NGINX ingress external IP **before** applying TLS Ingress
+2. Port 80 is reachable from the internet (check Azure NSG on the node subnet)
+3. cert-manager pods are healthy
+
+```bash
+# See what cert-manager is doing
+kubectl describe certificaterequest -n frontend
+kubectl describe order -n frontend
+kubectl describe challenge -n frontend
+
+# Check cert-manager logs
+kubectl logs -n cert-manager -l app=cert-manager --tail=50
+
+# Verify HTTP-01 challenge is reachable from outside
+curl -v http://app.manmas.online/.well-known/acme-challenge/test
+```
+
+Common causes:
+- DNS not propagated yet → wait and retry
+- NSG blocking port 80 → add inbound rule for port 80 on `rg-finops-prod-network`
+- Rate limit hit on production issuer → use staging issuer to test, switch to prod once working
+
+### Certificate shows Ready=True but browser still shows "Not Secure"
+
+You tested with `letsencrypt-staging` — staging certs are not browser-trusted by design.
+Delete the staging secret and switch to `letsencrypt-prod`:
+
+```bash
+sed -i 's/letsencrypt-staging/letsencrypt-prod/g' k8s/ingress.yaml
+kubectl delete secret finops-dashboard-tls -n frontend
+kubectl apply -f k8s/ingress.yaml
 ```

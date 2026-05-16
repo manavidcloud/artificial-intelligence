@@ -1,4 +1,17 @@
-"""Authentication module for FinOps Dashboard."""
+"""
+Authentication module for FinOps Dashboard.
+
+AUTH_MODE env var selects the backend:
+  local  (default) — YAML file + bcrypt, no external dependency
+  oauth  (future)  — Azure AD / Entra ID via MSAL (set OAUTH_CLIENT_ID + OAUTH_CLIENT_SECRET)
+  ldap   (future)  — Active Directory / OpenLDAP (set LDAP_SERVER + LDAP_BASE_DN)
+
+Adding a new auth backend:
+  1. Implement _verify_<mode>(username, password) → dict | None
+  2. Add elif branch in _verify()
+  3. Set AUTH_MODE=<mode> in the Dashboard's environment / secrets.env
+"""
+
 import os
 import logging
 from pathlib import Path
@@ -8,6 +21,8 @@ import streamlit as st
 import yaml
 
 logger = logging.getLogger(__name__)
+
+AUTH_MODE = os.getenv("AUTH_MODE", "local").lower().strip()
 
 _USERS_FILE = Path(__file__).parent / "users.yaml"
 
@@ -234,8 +249,8 @@ def _save_users(users: dict) -> None:
         yaml.dump({"users": users}, f, default_flow_style=False)
 
 
-def _verify(username: str, password: str) -> dict | None:
-    """Verify credentials. Auto-hashes plaintext passwords on first use."""
+def _verify_local(username: str, password: str) -> dict | None:
+    """Local YAML+bcrypt auth. Auto-upgrades plaintext passwords on first use."""
     users = _load_users()
     user = users.get(username)
     if not user:
@@ -243,13 +258,12 @@ def _verify(username: str, password: str) -> dict | None:
 
     stored = user.get("password", "")
 
-    # Already a bcrypt hash
     if stored.startswith("$2b$") or stored.startswith("$2a$"):
         if bcrypt.checkpw(password.encode(), stored.encode()):
             return user
         return None
 
-    # Plaintext — verify then upgrade in place
+    # Plaintext — verify then upgrade to bcrypt in-place
     if stored == password:
         hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
         users[username]["password"] = hashed
@@ -260,6 +274,67 @@ def _verify(username: str, password: str) -> dict | None:
         return user
 
     return None
+
+
+def _verify_oauth(username: str, password: str) -> dict | None:
+    """
+    Azure AD / Entra ID OAuth2 / OIDC auth stub.
+
+    TO ENABLE:
+      1. pip install msal (add to requirements.txt)
+      2. Set env vars: OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET, OAUTH_TENANT_ID
+      3. Replace the raise below with MSAL token acquisition logic:
+
+         import msal
+         app = msal.PublicClientApplication(
+             client_id=os.getenv("OAUTH_CLIENT_ID"),
+             authority=f"https://login.microsoftonline.com/{os.getenv('OAUTH_TENANT_ID')}",
+         )
+         result = app.acquire_token_by_username_password(
+             username=username, password=password,
+             scopes=["User.Read"],
+         )
+         if "access_token" in result:
+             return {"username": username, "name": username, "role": "viewer"}
+    """
+    raise NotImplementedError(
+        "OAuth auth not yet implemented. "
+        "See _verify_oauth() in auth.py for integration steps."
+    )
+
+
+def _verify_ldap(username: str, password: str) -> dict | None:
+    """
+    Active Directory / OpenLDAP auth stub.
+
+    TO ENABLE:
+      1. pip install ldap3 (add to requirements.txt)
+      2. Set env vars: LDAP_SERVER, LDAP_BASE_DN, LDAP_DOMAIN
+      3. Replace the raise below with ldap3 bind logic:
+
+         from ldap3 import Server, Connection, ALL
+         server = Server(os.getenv("LDAP_SERVER"), get_info=ALL)
+         dn = f"{os.getenv('LDAP_DOMAIN')}\\{username}"
+         with Connection(server, user=dn, password=password) as conn:
+             if conn.bind():
+                 return {"username": username, "name": username, "role": "viewer"}
+    """
+    raise NotImplementedError(
+        "LDAP auth not yet implemented. "
+        "See _verify_ldap() in auth.py for integration steps."
+    )
+
+
+def _verify(username: str, password: str) -> dict | None:
+    """Dispatch to the auth backend selected by AUTH_MODE env var."""
+    if AUTH_MODE == "local":
+        return _verify_local(username, password)
+    if AUTH_MODE == "oauth":
+        return _verify_oauth(username, password)
+    if AUTH_MODE == "ldap":
+        return _verify_ldap(username, password)
+    logger.error("Unknown AUTH_MODE=%r — falling back to local auth.", AUTH_MODE)
+    return _verify_local(username, password)
 
 
 # ---------------------------------------------------------------------------
@@ -273,7 +348,9 @@ def require_auth() -> None:
 
     st.markdown(LOGIN_CSS, unsafe_allow_html=True)
 
-    # Centre the card using columns
+    # Detect optional SSO availability
+    oauth_configured = bool(os.getenv("OAUTH_CLIENT_ID"))
+
     _, col, _ = st.columns([1, 1.4, 1])
     with col:
         st.markdown('<div class="login-card">', unsafe_allow_html=True)
@@ -290,29 +367,61 @@ def require_auth() -> None:
         )
 
         if st.button("Sign In", use_container_width=True):
-            user = _verify(username.strip(), password)
+            try:
+                user = _verify(username.strip(), password)
+            except NotImplementedError as exc:
+                st.error(str(exc))
+                st.stop()
+
             if user:
                 st.session_state["_user"] = {"username": username.strip(), **user}
                 st.rerun()
             else:
                 st.error("Invalid credentials. Please try again.")
 
+        # ── SSO / external auth section ────────────────────────────────────
+        # Only rendered when OAUTH_CLIENT_ID is set (AUTH_MODE=oauth).
+        # When not configured, shows a disabled placeholder so users know
+        # SSO exists but needs to be set up by an admin.
+        st.markdown('<div class="sso-divider">or continue with</div>', unsafe_allow_html=True)
+
+        if oauth_configured:
+            # OAuth flow: redirect user to Azure AD authorization endpoint.
+            # Full MSAL/OIDC integration goes here once AUTH_MODE=oauth is enabled.
+            # Currently handled by _verify_oauth() in this file.
+            st.markdown(
+                """<div class="sso-btn" style="cursor:pointer;">
+                    <svg width="18" height="18" viewBox="0 0 23 23">
+                      <rect x="1" y="1" width="10" height="10" fill="#f25022"/>
+                      <rect x="12" y="1" width="10" height="10" fill="#7fba00"/>
+                      <rect x="1" y="12" width="10" height="10" fill="#00a4ef"/>
+                      <rect x="12" y="12" width="10" height="10" fill="#ffb900"/>
+                    </svg>
+                    Sign in with Azure AD
+                </div>""",
+                unsafe_allow_html=True,
+            )
+            st.caption("Azure AD SSO is configured. Credential login above also works.")
+        else:
+            st.markdown(
+                """<div class="sso-btn" style="opacity:0.4; cursor:not-allowed;"
+                    title="Set OAUTH_CLIENT_ID + AUTH_MODE=oauth to enable SSO">
+                    <svg width="18" height="18" viewBox="0 0 23 23">
+                      <rect x="1" y="1" width="10" height="10" fill="#f25022"/>
+                      <rect x="12" y="1" width="10" height="10" fill="#7fba00"/>
+                      <rect x="1" y="12" width="10" height="10" fill="#00a4ef"/>
+                      <rect x="12" y="12" width="10" height="10" fill="#ffb900"/>
+                    </svg>
+                    Azure AD / LDAP SSO (not configured)
+                </div>""",
+                unsafe_allow_html=True,
+            )
+            st.caption("Admin: set `AUTH_MODE=oauth` and `OAUTH_CLIENT_ID` to enable SSO.")
+
+        auth_label = {"local": "Local credentials", "oauth": "Azure AD SSO", "ldap": "LDAP / AD"}.get(AUTH_MODE, AUTH_MODE)
         st.markdown(
-            '<div class="sso-divider">or continue with</div>',
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            """<div class="sso-btn">
-                <svg width="18" height="18" viewBox="0 0 48 48">
-                  <path fill="#4285F4" d="M43.6 20H24v8h11.3C33.8 33.4 29.4 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34 6.5 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20c11 0 19.7-8 19.7-20 0-1.3-.1-2.7-.1-4z"/>
-                </svg>
-                Sign in with Azure AD / Google
-            </div>""",
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            '<p class="login-footer">FinOps Platform v1.0 &nbsp;&bull;&nbsp; '
-            'Secured by Workload Identity</p>',
+            f'<p class="login-footer">FinOps Platform v1.0 &nbsp;&bull;&nbsp; '
+            f'Auth: {auth_label}</p>',
             unsafe_allow_html=True,
         )
         st.markdown("</div>", unsafe_allow_html=True)

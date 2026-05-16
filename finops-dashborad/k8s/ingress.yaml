@@ -1,0 +1,182 @@
+# =============================================================================
+# FinOps Platform — Ingress + TLS (Let's Encrypt via cert-manager)
+# =============================================================================
+#
+# Prerequisites (run once):
+#   1. NGINX Ingress Controller installed (Step 7a in README)
+#   2. DNS A records pointing to ingress EXTERNAL-IP (Step 7b)
+#   3. cert-manager installed (Step 7c)
+#
+# Usage:
+#   # First pass — staging certs (not browser-trusted, no rate limits)
+#   kubectl apply -f k8s/ingress.yaml
+#
+#   # After staging works, switch to production:
+#   sed -i 's/letsencrypt-staging/letsencrypt-prod/g' k8s/ingress.yaml
+#   kubectl delete secret finops-dashboard-tls    -n frontend
+#   kubectl delete secret finops-platform-api-tls -n platform
+#   kubectl delete secret finops-ai-agent-tls     -n ai
+#   kubectl apply -f k8s/ingress.yaml
+#
+# Monitor certificate issuance:
+#   kubectl get certificate -A --watch
+# =============================================================================
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ClusterIssuer — Let's Encrypt Staging
+# Use this first. Staging has no rate limits and is functionally identical.
+# Certs are NOT browser-trusted (expected).
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: mohamadabdulnavidcloud@gmail.com
+    privateKeySecretRef:
+      name: letsencrypt-staging-account-key
+    solvers:
+      - http01:
+          ingress:
+            ingressClassName: nginx
+
+---
+# ─────────────────────────────────────────────────────────────────────────────
+# ClusterIssuer — Let's Encrypt Production
+# Switch to this once staging works. Valid, browser-trusted certs.
+# Rate limit: 5 failed validations per domain per hour — test with staging first.
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: mohamadabdulnavidcloud@gmail.com
+    privateKeySecretRef:
+      name: letsencrypt-prod-account-key
+    solvers:
+      - http01:
+          ingress:
+            ingressClassName: nginx
+
+---
+# ─────────────────────────────────────────────────────────────────────────────
+# Ingress — FinOps Dashboard (app.manmas.online)
+# Namespace: frontend
+# cert-manager watches this and auto-provisions finops-dashboard-tls secret.
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: finops-dashboard-ingress
+  namespace: frontend
+  annotations:
+    # Tells cert-manager which ClusterIssuer to use.
+    # Change to letsencrypt-prod once staging cert is confirmed working.
+    cert-manager.io/cluster-issuer: "letsencrypt-staging"
+
+    # Force HTTP → HTTPS redirect
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+
+    # Streamlit uses WebSockets for live updates.
+    # HTTP/1.1 + long timeouts are required — do NOT use configuration-snippet
+    # for Upgrade headers because NGINX Ingress sets them automatically when
+    # proxy-http-version is "1.1" and the timeout is long enough.
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - app.manmas.online
+      # cert-manager creates this Secret automatically with the signed cert
+      secretName: finops-dashboard-tls
+  rules:
+    - host: app.manmas.online
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: finops-dashboard-svc
+                port:
+                  number: 80
+
+---
+# ─────────────────────────────────────────────────────────────────────────────
+# Ingress — Platform API (api.manmas.online)
+# Namespace: platform
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: finops-platform-api-ingress
+  namespace: platform
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-staging"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # Allow larger request bodies for sync payloads
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "120"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - api.manmas.online
+      secretName: finops-platform-api-tls
+  rules:
+    - host: api.manmas.online
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: finops-platform-api-svc
+                port:
+                  number: 80
+
+---
+# ─────────────────────────────────────────────────────────────────────────────
+# Ingress — AI Agent (ai.manmas.online)
+# Namespace: ai
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: finops-ai-agent-ingress
+  namespace: ai
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-staging"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # AI responses can be slow — extend read timeout for LLM calls
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "120"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - ai.manmas.online
+      secretName: finops-ai-agent-tls
+  rules:
+    - host: ai.manmas.online
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: finops-ai-agent-svc
+                port:
+                  number: 80

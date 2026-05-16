@@ -28,7 +28,7 @@ from sqlalchemy import func, text, desc
 
 from .database import get_db, init_db
 from .models import CostRecord, Resource, AdvisorRecommendation, Subscription
-from .providers.azure import AzureProvider
+from .providers import get_provider
 from .notifications import notifier
 
 # ---------------------------------------------------------------------------
@@ -55,7 +55,7 @@ app = FastAPI(
     ),
 )
 
-provider = AzureProvider()
+provider = get_provider()
 
 
 # ---------------------------------------------------------------------------
