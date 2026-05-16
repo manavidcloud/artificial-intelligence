@@ -1,0 +1,205 @@
+---
+# =============================================================================
+# FinOps Platform API — Kubernetes Manifests
+# Apply after running apply-secrets.sh:
+#   kubectl apply -f 2-platform-api/k8s/deployment.yaml
+# =============================================================================
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: platform
+  labels:
+    azure.workload.identity/use: "true"
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cost-platform-sa
+  namespace: platform
+  annotations:
+    azure.workload.identity/use: "true"
+    # client-id is set by apply-secrets.sh via kubectl annotate
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: finops-platform-api
+  namespace: platform
+  labels:
+    app: finops-platform-api
+    version: "1.0.0"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: finops-platform-api
+  template:
+    metadata:
+      labels:
+        app: finops-platform-api
+        azure.workload.identity/use: "true"
+    spec:
+      serviceAccountName: cost-platform-sa
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: finops-platform-api
+      containers:
+        - name: finops-platform-api
+          image: finopsacr.azurecr.io/finops-platform-api:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: finops-platform-secret
+                  key: DB_HOST
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: finops-platform-secret
+                  key: DB_NAME
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: finops-platform-secret
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: finops-platform-secret
+                  key: DB_PASSWORD
+            - name: AZURE_OPENAI_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: finops-platform-secret
+                  key: AZURE_OPENAI_ENDPOINT
+            - name: AZURE_OPENAI_DEPLOYMENT
+              valueFrom:
+                secretKeyRef:
+                  name: finops-platform-secret
+                  key: AZURE_OPENAI_DEPLOYMENT
+            - name: AZURE_OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: finops-platform-secret
+                  key: AZURE_OPENAI_API_KEY
+                  optional: true
+            - name: MI_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: finops-platform-secret
+                  key: MI_CLIENT_ID
+            - name: AZURE_SUBSCRIPTION_IDS
+              valueFrom:
+                secretKeyRef:
+                  name: finops-platform-secret
+                  key: AZURE_SUBSCRIPTION_IDS
+            - name: SMTP_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: finops-platform-secret
+                  key: SMTP_HOST
+                  optional: true
+            - name: SMTP_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: finops-platform-secret
+                  key: SMTP_PORT
+                  optional: true
+            - name: SMTP_USER
+              valueFrom:
+                secretKeyRef:
+                  name: finops-platform-secret
+                  key: SMTP_USER
+                  optional: true
+            - name: SMTP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: finops-platform-secret
+                  key: SMTP_PASSWORD
+                  optional: true
+            - name: SMTP_FROM
+              valueFrom:
+                secretKeyRef:
+                  name: finops-platform-secret
+                  key: SMTP_FROM
+                  optional: true
+            - name: ALERT_RECIPIENTS
+              valueFrom:
+                secretKeyRef:
+                  name: finops-platform-secret
+                  key: ALERT_RECIPIENTS
+                  optional: true
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            failureThreshold: 3
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "1000m"
+              memory: "512Mi"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: finops-platform-api-svc
+  namespace: platform
+  labels:
+    app: finops-platform-api
+spec:
+  type: ClusterIP
+  selector:
+    app: finops-platform-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: finops-platform-api-hpa
+  namespace: platform
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: finops-platform-api
+  minReplicas: 1
+  maxReplicas: 4
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

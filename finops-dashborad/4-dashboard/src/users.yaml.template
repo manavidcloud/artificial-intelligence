@@ -1,0 +1,28 @@
+# =============================================================================
+# FinOps Dashboard — User Credentials Template
+# =============================================================================
+# 1. Copy:   cp users.yaml.template users.yaml
+# 2. Update passwords (bcrypt hashes are auto-generated on first login)
+# 3. NEVER commit users.yaml — it is listed in .gitignore
+#
+# Roles:
+#   admin  — full access including Settings, manual sync, and alert triggers
+#   viewer — read-only access to all dashboard pages
+# =============================================================================
+
+users:
+  admin:
+    password: "changeme-use-strong-password"   # replaced with bcrypt hash on first login
+    name: "Administrator"
+    role: "admin"
+
+  viewer:
+    password: "viewer-changeme"                # replaced with bcrypt hash on first login
+    name: "Viewer User"
+    role: "viewer"
+
+# Add more users following the same structure:
+# username:
+#   password: "plaintext-or-bcrypt-hash"
+#   name: "Display Name"
+#   role: "admin" | "viewer"
