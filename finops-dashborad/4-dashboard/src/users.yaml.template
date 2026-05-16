@@ -8,12 +8,20 @@
 # Roles:
 #   admin  — full access including Settings, manual sync, and alert triggers
 #   viewer — read-only access to all dashboard pages
+#
+# IMPORTANT: The key under "users:" is the LOGIN USERNAME (what you type in the
+#            Username field). The "name:" field is only the display name shown
+#            after login — it is NOT used for authentication.
+#
+#   users:
+#     admin        ← login username
+#       name: "Administrator"  ← display name only, not used for login
 # =============================================================================
 
 users:
   admin:
     password: "changeme-use-strong-password"   # replaced with bcrypt hash on first login
-    name: "Administrator"
+    name: "Administrator"                      # display name only — login username is "admin"
     role: "admin"
 
   viewer:

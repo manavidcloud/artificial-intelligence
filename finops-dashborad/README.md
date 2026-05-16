@@ -1006,13 +1006,30 @@ You're on the staging issuer. Staging certs are valid but not trusted by browser
 ### Step 8 — First Login & Initial Sync
 
 1. Open the dashboard (`https://app.manmas.online` or `http://localhost:8501` via port-forward)
-2. Log in with the credentials from `users.yaml` (default: `admin` / `changeme-use-strong-password`)
+2. Log in with the credentials from `users.yaml` — the **YAML key** is the login username, not the `name:` field:
+   ```
+   username: admin          ← the key in users.yaml, e.g.  admin:
+   password: <your value>   ← the password: field
+   ```
+   The `name:` field (e.g. `finaiadmin`) is the display name shown in the sidebar after login — it is not used for authentication.
 3. Click **🔄 Sync All Data** in the sidebar — this pulls 30 days of data from Azure (takes 1-3 minutes)
 4. Navigate to **Costs**, **Resources**, **Advisor** pages to verify data
 5. Open **AI Chat** and ask: *"What are my top 5 spending services this month?"*
 
 <details>
 <summary><strong>Troubleshooting — Step 8</strong></summary>
+
+**Login: "Invalid credentials" — using the display name instead of the username**
+
+The `name:` field in `users.yaml` is the display name shown in the sidebar after login. The **login username** is the YAML key above it:
+```yaml
+users:
+  admin:            # ← type this in the Username field
+    name: "finaiadmin"   # ← this is NOT the username
+```
+Always use the key (`admin`, `viewer`, etc.) as the username, not the `name` value.
+
+---
 
 **Login: "Invalid credentials" after a `kubectl rollout restart`**
 

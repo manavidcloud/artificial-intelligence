@@ -83,10 +83,7 @@ metadata:
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
 
-    # Streamlit uses WebSockets for live updates.
-    # HTTP/1.1 + long timeouts are required — do NOT use configuration-snippet
-    # for Upgrade headers because NGINX Ingress sets them automatically when
-    # proxy-http-version is "1.1" and the timeout is long enough.
+    # Streamlit requires WebSocket for live updates and session state.
     nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
