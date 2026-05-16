@@ -3,7 +3,8 @@
     "allow": [
       "Bash(kubectl get *)",
       "Bash(kubectl describe *)",
-      "Bash(az aks *)"
+      "Bash(az aks *)",
+      "Bash(python3 -c ' *)"
     ]
   }
 }

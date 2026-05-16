@@ -480,6 +480,60 @@ chmod +x 1-infrastructure/scripts/setup.sh
 
 > **Idempotent** — re-running `setup.sh` is safe. Each step checks whether the resource already exists and skips creation if it does, validating key properties (location, CIDR, SKU) and warning on any mismatch.
 
+<details>
+<summary><strong>Troubleshooting — Step 2</strong></summary>
+
+**`az postgres flexible-server` fails with module error**
+```
+No module named 'azure.mgmt.rdbms.mysql_flexibleservers'
+```
+The Azure CLI has a broken Python dependency. Reinstall and re-login:
+```bash
+curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+az login
+```
+
+---
+
+**Azure OpenAI resource soft-deleted / `ResourceExists` error**
+
+If setup.sh fails on the OpenAI step because the resource was previously deleted (Azure retains it in soft-delete for 48h by default), purge it first:
+```bash
+# List soft-deleted Cognitive Services resources
+az cognitiveservices account list-deleted
+
+# Purge the soft-deleted resource so it can be recreated
+az cognitiveservices account purge \
+  --name finops-ai-brain \
+  --resource-group rg-finops-prod-ai \
+  --location southindia
+
+# Verify it's gone
+az cognitiveservices account list --output table
+```
+Then re-run `setup.sh`.
+
+---
+
+**Key Vault name already taken globally**
+
+Key Vault names are globally unique across all Azure tenants. If `VaultAlreadyExists` appears, change `KV_NAME` in `setup.sh` (e.g., `kv-finops-prod00`) and update `config.yaml` and `apply-secrets.sh` to match.
+
+---
+
+**AKS `K8sVersionNotSupported` on `az aks update --attach-acr`**
+
+AKS free tier blocks certain update operations. Use direct role assignment instead:
+```bash
+ACR_ID=$(az acr show --name finopsacrmanmas --resource-group rg-finops-prod-core --query id -o tsv)
+KUBELET_OID=$(az aks show --name finops-aks --resource-group rg-finops-prod-core \
+  --query "identityProfile.kubeletidentity.objectId" -o tsv)
+az role assignment create --role AcrPull --assignee-object-id "$KUBELET_OID" \
+  --assignee-principal-type ServicePrincipal --scope "$ACR_ID"
+```
+
+</details>
+
 ---
 
 ### Step 3 — Fill Secrets
@@ -517,6 +571,22 @@ SMTP_FROM=you@gmail.com
 ALERT_RECIPIENTS=you@gmail.com,team@company.com
 ```
 
+<details>
+<summary><strong>Troubleshooting — Step 3</strong></summary>
+
+**`bash: !xxx: event not found` when pasting a password**
+
+Bash treats `!` as a history expansion character inside double quotes. Always use **single quotes** for passwords on the command line:
+```bash
+# Wrong — bash expands !admi9
+az postgres flexible-server update --admin-password "AzFleX!admi9"
+
+# Correct
+az postgres flexible-server update --admin-password 'AzFleX!admi9'
+```
+
+</details>
+
 ---
 
 ### Step 4 — Apply Kubernetes Secrets
@@ -546,6 +616,32 @@ kubectl get secrets -A
 kubectl get serviceaccounts -n platform
 kubectl get serviceaccounts -n ai
 ```
+
+<details>
+<summary><strong>Troubleshooting — Step 4</strong></summary>
+
+**Key Vault write fails: `ForbiddenByRbac`**
+
+The script auto-assigns `Key Vault Secrets Officer` to the caller. If it still fails, assign manually:
+```bash
+KV_ID=$(az keyvault show --name kv-finops-prod00 --resource-group rg-finops-prod-security --query id -o tsv)
+CALLER_OID=$(az ad signed-in-user show --query id -o tsv)
+az role assignment create --role "Key Vault Secrets Officer" \
+  --assignee-object-id "$CALLER_OID" --scope "$KV_ID"
+# Wait ~30s for RBAC propagation, then re-run apply-secrets.sh
+```
+
+---
+
+**K8s secret has wrong DB password after re-running**
+
+If the pod crashes with password auth failure, re-sync the secret from `secrets.env` and restart:
+```bash
+bash 1-infrastructure/scripts/apply-secrets.sh
+kubectl rollout restart deployment/finops-platform-api -n platform
+```
+
+</details>
 
 ---
 
@@ -595,6 +691,27 @@ kubectl create secret generic finops-dashboard-users \
 
 If the secret is missing, the pod starts but falls back to the `users.yaml` baked into the image (from template — no real passwords). Always create the secret before or right after Step 6.
 
+<details>
+<summary><strong>Troubleshooting — Step 5</strong></summary>
+
+**Docker BuildKit warns: `Do not use ENV instructions for sensitive data (ENV "AUTH_MODE")`**
+
+Docker BuildKit lints any `ENV` var containing `AUTH` as potentially sensitive. `AUTH_MODE` must not be set in the Dockerfile — it is already injected at runtime via `4-dashboard/k8s/deployment.yaml`. The Dockerfile in this repo has no `ENV AUTH_MODE` line. If you added one, remove it.
+
+---
+
+**Build fails: `pip install` conflict — `langchain-openai 0.1.23 depends on openai>=1.40.0`**
+
+The `openai` version in `3-ai-agent/requirements.txt` must be `>=1.40.0`. The file in this repo already has `openai>=1.40.0,<2.0.0`. If you see this error, check you are building from the latest source.
+
+---
+
+**Pod fails with `no match for platform in manifest`**
+
+The image was built without the correct `--platform` flag. See the build commands above — platform-api and dashboard require `--platform linux/amd64`; ai-agent requires `--platform linux/amd64,linux/arm64`.
+
+</details>
+
 ---
 
 ### Step 6 — Deploy to AKS
@@ -623,6 +740,71 @@ platform     finops-platform-api-xxx    1/1   Running
 ai           finops-ai-agent-xxx        1/1   Running
 frontend     finops-dashboard-xxx       1/1   Running
 ```
+
+<details>
+<summary><strong>Troubleshooting — Step 6</strong></summary>
+
+**CrashLoopBackOff: `ModuleNotFoundError: No module named 'six'`** (platform-api)
+
+Already fixed in `2-platform-api/requirements.txt` — `six` is listed explicitly. Rebuild the image if you see this on an older build.
+
+---
+
+**CrashLoopBackOff: `AzureChatOpenAI proxies validation error`** (ai-agent)
+
+```
+pydantic.v1.error_wrappers.ValidationError: Client.__init__() got an unexpected keyword argument 'proxies'
+```
+Already fixed — `langchain-openai==0.1.23` + `openai>=1.40.0` in `3-ai-agent/requirements.txt`. Rebuild the image if you see this.
+
+---
+
+**CrashLoopBackOff: `FATAL: no pg_hba.conf entry … no encryption`** (platform-api)
+
+Azure PostgreSQL Flexible Server rejects unencrypted connections. Already fixed — `connect_args={"sslmode": "require"}` is in `2-platform-api/src/database.py`. Rebuild if you see this.
+
+---
+
+**CrashLoopBackOff: `FATAL: password authentication failed for user "pgadmin"`** (platform-api)
+
+The K8s secret has a different password than what PostgreSQL has. Fix both:
+```bash
+# Reset DB password in Azure (single quotes required for passwords containing !)
+az postgres flexible-server update \
+  --resource-group rg-finops-prod-data \
+  --name finops-pgflex \
+  --admin-password 'AzFleX!admi9'
+
+# Re-sync K8s secret from secrets.env
+bash 1-infrastructure/scripts/apply-secrets.sh
+kubectl rollout restart deployment/finops-platform-api -n platform
+```
+
+---
+
+**Pod stuck in Pending: `Insufficient cpu` / node affinity mismatch**
+
+The system nodepool node is out of CPU headroom. Check usage and options:
+```bash
+kubectl top nodes
+kubectl top pods -A
+```
+Options: scale the node VM up, or reduce resource requests in the deployment manifests. The platform-api and dashboard both use `requests: cpu: 100m`.
+
+---
+
+**ImagePullBackOff 401 — images not pulling from ACR**
+
+The kubelet identity is missing the AcrPull role. Re-assign:
+```bash
+ACR_ID=$(az acr show --name finopsacrmanmas --resource-group rg-finops-prod-core --query id -o tsv)
+KUBELET_OID=$(az aks show --name finops-aks --resource-group rg-finops-prod-core \
+  --query "identityProfile.kubeletidentity.objectId" -o tsv)
+az role assignment create --role AcrPull --assignee-object-id "$KUBELET_OID" \
+  --assignee-principal-type ServicePrincipal --scope "$ACR_ID"
+```
+
+</details>
 
 ---
 
@@ -687,6 +869,8 @@ ai.manmas.online    →  <EXTERNAL-IP>
 
 > Let's Encrypt's HTTP-01 challenge requires DNS to resolve **before** you apply
 > the Ingress with TLS. Wait for DNS propagation (`nslookup app.manmas.online`).
+
+
 
 #### 7c — Install cert-manager
 
@@ -773,15 +957,99 @@ kubectl get certificate -A
 kubectl describe certificate finops-dashboard-tls -n frontend
 ```
 
+<details>
+<summary><strong>Troubleshooting — Step 7</strong></summary>
+
+**`curl: (60) SSL certificate problem: unable to get local issuer certificate`**
+
+You are on the staging certificate, which is not trusted by browsers or curl. This is expected when `letsencrypt-staging` is the issuer. Switch to production:
+```bash
+sed -i 's/letsencrypt-staging/letsencrypt-prod/g' k8s/ingress.yaml
+
+kubectl delete secret finops-dashboard-tls    -n frontend
+kubectl delete secret finops-platform-api-tls -n platform
+kubectl delete secret finops-ai-agent-tls     -n ai
+
+kubectl apply -f k8s/ingress.yaml
+kubectl get certificate -A --watch   # wait for READY=True (~60s)
+```
+
+---
+
+**Certificate stuck in Pending / not issuing**
+
+cert-manager uses HTTP-01 challenge — it serves a token at `http://<domain>/.well-known/acme-challenge/<token>`. Requirements:
+1. DNS must resolve to the NGINX ingress IP **before** applying the Ingress
+2. Port 80 must be reachable from the internet (check Azure NSG on the AKS subnet)
+
+Diagnose:
+```bash
+kubectl describe certificaterequest -n frontend
+kubectl describe order -n frontend
+kubectl describe challenge -n frontend
+kubectl logs -n cert-manager -l app=cert-manager --tail=50
+
+# Test HTTP-01 reachability
+curl -v http://app.manmas.online/.well-known/acme-challenge/test
+```
+
+---
+
+**Browser shows "Not Secure" even though certificate is Ready=True**
+
+You're on the staging issuer. Staging certs are valid but not trusted by browsers by design. Follow the "switch to production" steps above.
+
+</details>
+
 ---
 
 ### Step 8 — First Login & Initial Sync
 
-1. Open the dashboard (e.g., `http://localhost:8501`)
+1. Open the dashboard (`https://app.manmas.online` or `http://localhost:8501` via port-forward)
 2. Log in with the credentials from `users.yaml` (default: `admin` / `changeme-use-strong-password`)
 3. Click **🔄 Sync All Data** in the sidebar — this pulls 30 days of data from Azure (takes 1-3 minutes)
 4. Navigate to **Costs**, **Resources**, **Advisor** pages to verify data
 5. Open **AI Chat** and ask: *"What are my top 5 spending services this month?"*
+
+<details>
+<summary><strong>Troubleshooting — Step 8</strong></summary>
+
+**Login: "Invalid credentials" after a `kubectl rollout restart`**
+
+`kubectl port-forward` tunnels to a specific pod at the time it is started. After a deployment restart, the old tunnel points at the terminated pod. Kill and restart:
+```bash
+pkill -f "port-forward"
+kubectl port-forward -n frontend svc/finops-dashboard-svc 8501:80
+```
+Then open `http://localhost:8501` in an **incognito window** (clears stale Streamlit websocket state).
+
+---
+
+**Login: "Invalid credentials" and you are sure the password is correct**
+
+Verify what the pod actually reads from its mounted `users.yaml`:
+```bash
+kubectl exec -n frontend \
+  $(kubectl get pod -n frontend -l app=finops-dashboard -o jsonpath='{.items[0].metadata.name}') \
+  -- python3 -c "
+import yaml, bcrypt
+from pathlib import Path
+data = yaml.safe_load(Path('/app/src/users.yaml').read_bytes().decode())
+stored = data['users']['admin']['password']
+test_pw = 'YOUR_PASSWORD'
+print('stored:', repr(stored))
+print('plaintext match:', stored == test_pw)
+"
+```
+If `plaintext match: False`, recreate the secret with the correct password:
+```bash
+kubectl delete secret finops-dashboard-users -n frontend
+kubectl create secret generic finops-dashboard-users \
+  --from-file=users.yaml=4-dashboard/src/users.yaml -n frontend
+kubectl rollout restart deployment/finops-dashboard -n frontend
+```
+
+</details>
 
 ---
 
@@ -884,22 +1152,18 @@ Adding a Spot node pool for the AI agent can reduce costs further. The AKS free 
 
 ## Troubleshooting
 
-### Pod not starting
+> Step-specific troubleshooting is inline after each step above. This section covers issues that span multiple steps or are unrelated to the deployment sequence.
+
+### General pod diagnostics
 
 ```bash
 kubectl describe pod <pod-name> -n <namespace>
 kubectl logs <pod-name> -n <namespace> --previous
 ```
 
-### Platform API returns 503 (DB error)
-
-1. Check PostgreSQL is accessible from AKS subnet
-2. Verify `DB_HOST`, `DB_USER`, `DB_PASSWORD` in the secret: `kubectl get secret finops-platform-secret -n platform -o yaml`
-3. Check private DNS resolution: `kubectl run -it --rm debug --image=busybox -- nslookup finops-pgflex.postgres.database.azure.com`
-
 ### Cost sync returns 0 rows
 
-1. Ensure `AZURE_SUBSCRIPTION_IDS` is set correctly
+1. Ensure `AZURE_SUBSCRIPTION_IDS` is set correctly in `secrets.env` and the secret
 2. Verify the Managed Identity has `Cost Management Reader` role on the subscription
 3. Check that data exists in Azure Cost Management (new subscriptions may have a 24-48h delay)
 
@@ -907,219 +1171,23 @@ kubectl logs <pod-name> -n <namespace> --previous
 
 1. Check AI Agent pod is Running: `kubectl get pods -n ai`
 2. Verify `AZURE_OPENAI_ENDPOINT` and `AZURE_OPENAI_DEPLOYMENT` in `finops-ai-secret`
-3. Test agent health: `kubectl port-forward -n ai svc/finops-ai-agent-svc 8000:80` then `curl http://localhost:8000/health`
+3. Test agent health:
+   ```bash
+   kubectl port-forward -n ai svc/finops-ai-agent-svc 8000:80
+   curl http://localhost:8000/health
+   ```
 
 ### Workload Identity not working
 
 ```bash
 # Check OIDC issuer is set on AKS
-az aks show --name finops-aks --resource-group rg-finops-prod-core --query oidcIssuerProfile.issuerUrl -o tsv
+az aks show --name finops-aks --resource-group rg-finops-prod-core \
+  --query oidcIssuerProfile.issuerUrl -o tsv
 
 # Check federated credentials exist
-az identity federated-credential list --identity-name mi-finops-prod --resource-group rg-finops-prod-core
+az identity federated-credential list \
+  --identity-name mi-finops-prod --resource-group rg-finops-prod-core
 
 # Check service account annotation
 kubectl get sa cost-platform-sa -n platform -o yaml | grep azure.workload
 ```
-
-### Images not pulling from ACR
-
-```bash
-# Re-grant AcrPull to AKS kubelet identity (setup.sh uses direct role assignment, not az aks update)
-ACR_ID=$(az acr show --name finopsacrmanmas --resource-group rg-finops-prod-core --query id -o tsv)
-KUBELET_OID=$(az aks show --name finops-aks --resource-group rg-finops-prod-core \
-  --query "identityProfile.kubeletidentity.objectId" -o tsv)
-az role assignment create --role AcrPull --assignee-object-id "$KUBELET_OID" \
-  --assignee-principal-type ServicePrincipal --scope "$ACR_ID"
-```
-
-### TLS certificate stuck in Pending / not issuing
-
-cert-manager uses HTTP-01 challenge — it temporarily serves a token at
-`http://<domain>/.well-known/acme-challenge/<token>`. This requires:
-
-1. DNS resolves to the NGINX ingress external IP **before** applying TLS Ingress
-2. Port 80 is reachable from the internet (check Azure NSG on the node subnet)
-3. cert-manager pods are healthy
-
-```bash
-# See what cert-manager is doing
-kubectl describe certificaterequest -n frontend
-kubectl describe order -n frontend
-kubectl describe challenge -n frontend
-
-# Check cert-manager logs
-kubectl logs -n cert-manager -l app=cert-manager --tail=50
-
-# Verify HTTP-01 challenge is reachable from outside
-curl -v http://app.manmas.online/.well-known/acme-challenge/test
-```
-
-Common causes:
-- DNS not propagated yet → wait and retry
-- NSG blocking port 80 → add inbound rule for port 80 on `rg-finops-prod-network`
-- Rate limit hit on production issuer → use staging issuer to test, switch to prod once working
-
-### Certificate shows Ready=True but browser still shows "Not Secure"
-
-You tested with `letsencrypt-staging` — staging certs are not browser-trusted by design.
-Delete the staging secret and switch to `letsencrypt-prod`:
-
-```bash
-sed -i 's/letsencrypt-staging/letsencrypt-prod/g' k8s/ingress.yaml
-kubectl delete secret finops-dashboard-tls -n frontend
-kubectl apply -f k8s/ingress.yaml
-```
-
----
-
-### CrashLoopBackOff: `ModuleNotFoundError: No module named 'six'`
-
-**Symptom:** platform-api pod crashes immediately on startup with:
-```
-File "...azure/mgmt/resourcegraph/models/_resource_graph_client_enums.py"
-ModuleNotFoundError: No module named 'six'
-```
-
-**Cause:** `azure-mgmt-resourcegraph==8.0.0` has a transitive dependency on `six` (a Python 2/3 compat library) that is not declared in its own package metadata.
-
-**Fix:** Already applied — `six` is explicitly listed in `2-platform-api/requirements.txt`. No action needed on a fresh build from this repo.
-
----
-
-### CrashLoopBackOff: `AzureChatOpenAI proxies validation error`
-
-**Symptom:** ai-agent pod crashes with:
-```
-pydantic.v1.error_wrappers.ValidationError: 1 validation error for AzureChatOpenAI
-__root__
-  Client.__init__() got an unexpected keyword argument 'proxies'
-```
-
-**Cause:** `langchain-openai<0.1.9` passes `proxies=None` to the `openai` client constructor. `openai>=1.0.0` does not accept a `proxies` kwarg — it was removed in the 1.x rewrite. Additionally, `langchain-openai>=0.1.20` requires `openai>=1.40.0`.
-
-**Fix:** Already applied in `3-ai-agent/requirements.txt`:
-```
-langchain==0.2.16
-langchain-openai==0.1.23
-langgraph==0.2.14
-openai>=1.40.0,<2.0.0
-```
-No action needed on a fresh build from this repo.
-
----
-
-### CrashLoopBackOff: `PostgreSQL — FATAL: no pg_hba.conf entry … no encryption`
-
-**Symptom:** platform-api pod crashes with:
-```
-FATAL:  no pg_hba.conf entry for host "10.0.2.x", user "pgadmin",
-        database "finops-db", no encryption
-```
-
-**Cause:** Azure PostgreSQL Flexible Server rejects connections that are not encrypted with SSL. The SQLAlchemy engine was not passing `sslmode=require`.
-
-**Fix:** Already applied in `2-platform-api/src/database.py`:
-```python
-engine = create_engine(DATABASE_URL, connect_args={"sslmode": "require"}, ...)
-```
-No action needed on a fresh build from this repo.
-
----
-
-### CrashLoopBackOff: `PostgreSQL — FATAL: password authentication failed`
-
-**Symptom:** platform-api pod crashes with:
-```
-FATAL:  password authentication failed for user "pgadmin"
-```
-
-**Cause:** The `DB_PASSWORD` in the Kubernetes secret does not match the actual PostgreSQL admin password. This happens when `apply-secrets.sh` was run before `secrets.env` had the correct password, or when the PostgreSQL password was reset separately.
-
-**Fix:**
-
-1. Verify what password is in the K8s secret:
-   ```bash
-   kubectl get secret finops-platform-secret -n platform \
-     -o jsonpath='{.data.DB_PASSWORD}' | base64 -d; echo
-   ```
-
-2. If it does not match, reset the PostgreSQL password to match `secrets.env`, then re-sync the secret:
-   ```bash
-   # Reset DB password in Azure (use single quotes — see note below)
-   az postgres flexible-server update \
-     --resource-group rg-finops-prod-data \
-     --name finops-pgflex \
-     --admin-password 'AzFleX!admi9'
-
-   # Re-sync K8s secrets from secrets.env
-   bash 1-infrastructure/scripts/apply-secrets.sh
-
-   # Restart the deployment
-   kubectl rollout restart deployment/finops-platform-api -n platform
-   ```
-
-> **Bash tip:** Passwords containing `!` must be wrapped in **single quotes** in bash. Double quotes cause `bash: !xxx: event not found` because `!` triggers history expansion. Always use `'password'` not `"password"` when passing passwords on the command line.
-
----
-
-### Docker build: `AUTH_*` variable warning / BuildKit lint error
-
-**Symptom:** `docker buildx build` for the dashboard fails or warns:
-```
-SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ENV "AUTH_MODE")
-```
-
-**Cause:** Docker BuildKit treats any env var containing `AUTH` in the name as potentially sensitive and lints against it in `ENV` instructions.
-
-**Fix:** Already applied — `ENV AUTH_MODE=local` was removed from `4-dashboard/Dockerfile`. The app already defaults to `local` via `os.getenv("AUTH_MODE", "local")`. `AUTH_MODE` is injected at runtime via the Kubernetes manifest (`4-dashboard/k8s/deployment.yaml`) as a plain `env` value, not via the image.
-
----
-
-### Pod stuck in Pending: `Insufficient cpu` / `node(s) didn't match node affinity`
-
-**Symptom:**
-```
-0/2 nodes are available: 1 Insufficient cpu,
-1 node(s) didn't match Pod's node affinity/selector.
-```
-
-**Cause:** The system nodepool node has run out of CPU headroom for new pods.
-
-**Fix options:**
-
-Option A — Scale up the system nodepool node to a larger VM (requires cluster recreation or node pool update):
-```bash
-az aks nodepool update \
-  --cluster-name finops-aks \
-  --resource-group rg-finops-prod-core \
-  --name nodepool1 \
-  --node-vm-size Standard_B4als_v2
-```
-
-Option B — Move workloads to the `apppool` ARM node by removing the `nodeSelector` from their manifests (only for multi-arch images).
-
-Option C — Check what is consuming CPU and reduce limits:
-```bash
-kubectl top nodes
-kubectl top pods -A
-```
-
-The platform-api and dashboard deployments use `requests: cpu: 100m` — if the node is still exhausted, an KEDA-scaled or rogue pod may be consuming spare capacity.
-
----
-
-### `az postgres flexible-server` fails with module error
-
-**Symptom:**
-```
-No module named 'azure.mgmt.rdbms.mysql_flexibleservers'
-```
-
-**Cause:** The Azure CLI's `rdbms` extension is installed but has a broken Python dependency (common after partial upgrades).
-
-**Fix:** Reinstall the Azure CLI from scratch:
-```bash
-curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-```
-Then re-login: `az login`.

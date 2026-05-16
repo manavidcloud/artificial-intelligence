@@ -12,7 +12,7 @@
 #   kubectl apply -f k8s/ingress.yaml
 #
 #   # After staging works, switch to production:
-#   sed -i 's/letsencrypt-staging/letsencrypt-prod/g' k8s/ingress.yaml
+#   sed -i 's/letsencrypt-prod/letsencrypt-prod/g' k8s/ingress.yaml
 #   kubectl delete secret finops-dashboard-tls    -n frontend
 #   kubectl delete secret finops-platform-api-tls -n platform
 #   kubectl delete secret finops-ai-agent-tls     -n ai
@@ -30,13 +30,13 @@
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
-  name: letsencrypt-staging
+  name: letsencrypt-prod
 spec:
   acme:
     server: https://acme-staging-v02.api.letsencrypt.org/directory
     email: mohamadabdulnavidcloud@gmail.com
     privateKeySecretRef:
-      name: letsencrypt-staging-account-key
+      name: letsencrypt-prod-account-key
     solvers:
       - http01:
           ingress:
@@ -77,7 +77,7 @@ metadata:
   annotations:
     # Tells cert-manager which ClusterIssuer to use.
     # Change to letsencrypt-prod once staging cert is confirmed working.
-    cert-manager.io/cluster-issuer: "letsencrypt-staging"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
 
     # Force HTTP → HTTPS redirect
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
@@ -121,7 +121,7 @@ metadata:
   name: finops-platform-api-ingress
   namespace: platform
   annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-staging"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     # Allow larger request bodies for sync payloads
@@ -157,7 +157,7 @@ metadata:
   name: finops-ai-agent-ingress
   namespace: ai
   annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-staging"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     # AI responses can be slow — extend read timeout for LLM calls
