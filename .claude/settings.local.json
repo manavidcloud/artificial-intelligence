@@ -4,7 +4,8 @@
       "Bash(kubectl get *)",
       "Bash(kubectl describe *)",
       "Bash(az aks *)",
-      "Bash(python3 -c ' *)"
+      "Bash(python3 -c ' *)",
+      "Bash(python -c ' *)"
     ]
   }
 }

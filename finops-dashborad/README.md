@@ -25,7 +25,7 @@
    - [Step 7 — Expose via Ingress](#step-7--expose-via-ingress)
    - [Step 8 — First Login & Initial Sync](#step-8--first-login--initial-sync)
    - [Step 9 — Sanity Check](#step-9--sanity-check)
-7. [Dashboard Pages](#dashboard-pages)
+7. [Dashboard Pages & Features](#dashboard-pages--features)
 8. [API Reference](#api-reference)
 9. [AI Agent](#ai-agent)
 10. [Cost Estimates](#cost-estimates)
@@ -1169,16 +1169,55 @@ nslookup app.manmas.online
 
 ---
 
-## Dashboard Pages
+## Dashboard Pages & Features
 
 | Page | Icon | Description |
 |---|---|---|
-| Home | ⚡ | KPI summary, daily trend chart, top 5 services, Advisor summary |
-| Costs | 💰 | Full analysis: daily/service/subscription/resource-group breakdowns |
-| Resources | 🖥️ | Resource inventory with type/location/RG filters |
-| Advisor | 💡 | Cost optimization recommendations with savings potential |
-| AI Chat | 🤖 | Natural language Q&A backed by live cost data |
+| Home | ⚡ | KPI cards, Cost Summary, Savings Summary, Sankey cost flow, daily trend with anomaly detection, efficiency scorecard |
+| Costs | 💰 | 8 tabs: Daily Trend, By Service, By Subscription, By RG, Storage, Network, Savings Leaderboard, **MoM Comparison** |
+| Resources | 🖥️ | Inventory with type/location/RG filters; Watch List (idle/orphaned); untagged resource report |
+| Advisor | 💡 | Impact-sorted recommendations with savings cards; Rightsizing Panel with per-resource bar chart |
+| AI Chat | 🤖 | Context-aware Q&A; Explain the Bill prompts; Optimization tips — backed by live API data |
 | Settings | ⚙️ | Manual sync, email alert testing, system health (admin only) |
+
+### Home Page — What Each Section Does
+
+| Section | What it shows |
+|---|---|
+| 5 KPI Cards | Total Spend, Previous Period, Avg Daily, Savings Potential, Budget % (or Days in Period) |
+| Cost Summary | Large billed cost + period change % + Current/Previous/Projected horizontal bars |
+| Savings Summary | Total savings available (large) + High/Medium/Low impact bars with rec counts |
+| Budget Tracker | Progress bar + spent/budget/remaining/% used (shown only when a budget is set in the sidebar) |
+| Daily Trend + Forecast | Trend chart with 7-day rolling avg + anomaly spikes; linear forecast for month-end projected total |
+| Cost Flow Sankey | How spend flows: Total → 6 categories (Compute/Storage/Network/Database/Monitor & Security/Other) → top 8 services |
+| Top Services + Distribution | Horizontal bar with share % + donut chart |
+| Cost by Category | Bar chart — hover for category definitions (what services are included) |
+| Advisor Opportunities | Impact cards showing count + savings; expandable list of the actual recommendation titles |
+| Efficiency Scorecard | Tag compliance %, untagged resource count, waste grade (A–F) based on open Advisor recs + tag gap |
+
+### Costs Page — 8 Tabs
+
+| Tab | Key feature |
+|---|---|
+| Daily Trend | Line/Bar/Area chart, 7-day rolling avg, anomaly detection (mean + 2σ), spike warning banner |
+| By Service | Horizontal bar + pie/treemap, share % column, CSV/Excel download |
+| By Subscription | Pie/Bar/Treemap, subscription names resolved from UUIDs |
+| By Resource Group | Bar/Treemap by resource group |
+| Storage | Filtered: Storage Accounts, Blob, Disk, Backup, Data Lake — with % of total spend |
+| Network | Filtered: Bandwidth, VNet, CDN, VPN, Load Balancer, Firewall — with % of total spend |
+| Savings Leaderboard | All services ranked, share %, cumulative % (find your Pareto 80/20 line) |
+| **MoM Comparison** | Current period vs previous equivalent period per category — grouped bar + per-category change metrics |
+
+### AI Chat — v1.1 Features
+
+| Feature | Description |
+|---|---|
+| Dashboard Context | Fetches current period spend + top 5 services + Advisor savings and sends as AI context automatically |
+| Context Inspector | Expandable "📡 Context being sent to AI" panel so you can verify what the AI knows |
+| Explain the Bill | Tab of prompts for explaining Azure billing items (Bandwidth, Monitor, Backup, Reserved Instances…) |
+| `explain_azure_service` tool | Agent has built-in plain-English explanations for 20+ Azure billing line items |
+| Tool Visibility | Each AI response shows which Platform API tools were called |
+| Organized Suggestions | Three tabs: Cost Analysis / Explain the Bill / Optimization |
 
 ---
 
@@ -1220,21 +1259,24 @@ The Platform API runs at `http://finops-platform-api-svc.platform.svc.cluster.lo
 
 ## AI Agent
 
-The AI Agent exposes two endpoints:
+The AI Agent (v1.1) exposes two endpoints:
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/health` | Returns status and model name |
+| GET | `/health` | Returns status, model name, and version |
 | POST | `/chat` | Chat with the FinOps AI |
 
-**Chat request format:**
+**Chat request format (v1.1 — with optional dashboard context):**
 ```json
 {
   "messages": [
     {"role": "user", "content": "What are my top 3 spending services this week?"}
-  ]
+  ],
+  "context": "Total spend: $1,234.56 USD\nTime range: Last 30 days\nTop service: Azure Kubernetes Service: $456.78"
 }
 ```
+
+The `context` field is optional. When provided, it is injected into the agent's system prompt so it can answer without making redundant tool calls for data the dashboard already fetched.
 
 **Chat response format:**
 ```json
@@ -1244,7 +1286,21 @@ The AI Agent exposes two endpoints:
 }
 ```
 
-The agent has access to 6 tools that call the Platform API. It uses a ReAct loop to gather data before answering.
+**Available tools (v1.1 — 9 tools):**
+
+| Tool | Description |
+|---|---|
+| `get_cost_summary` | Total + previous period + % change |
+| `get_top_services` | Top services by cost (up to 15) |
+| `get_cost_trend` | Daily cost data for anomaly and trend queries |
+| `get_advisor_recommendations` | Recommendations by impact level |
+| `get_all_advisor_recommendations` | All recommendations regardless of impact |
+| `get_resource_list` | Resource inventory, optional type filter |
+| `get_cost_by_subscription` | Per-subscription breakdown |
+| `get_cost_by_resource_group` | Per-RG breakdown |
+| `explain_azure_service` | Plain-English explanation of any Azure billing line item |
+
+The agent uses a **LangGraph ReAct loop** — it calls tools until it has enough data to answer, then synthesises a final response with cited numbers. The system prompt includes built-in billing knowledge for 20+ Azure services, covering common finance-team questions like "why did my bill spike on the 1st?" (Reserved Instance amortization) or "what are Bandwidth charges?" (egress fees).
 
 ---
 
@@ -1268,42 +1324,41 @@ Adding a Spot node pool for the AI agent can reduce costs further. The AKS free 
 
 ## Troubleshooting
 
-> Step-specific troubleshooting is inline after each step above. This section covers issues that span multiple steps or are unrelated to the deployment sequence.
+> Each component has a dedicated, comprehensive troubleshooting guide. Start with the guide for the component that is failing:
 
-### General pod diagnostics
+| Component | Guide | Covers |
+|---|---|---|
+| Infrastructure | [1-infrastructure/TROUBLESHOOTING.md](1-infrastructure/TROUBLESHOOTING.md) | `setup.sh` failures, Workload Identity, TLS/cert-manager, cost sync roles |
+| Platform API | [2-platform-api/TROUBLESHOOTING.md](2-platform-api/TROUBLESHOOTING.md) | CrashLoopBackOff, DB connection, data sync 0 rows, email notifications |
+| AI Agent | [3-ai-agent/TROUBLESHOOTING.md](3-ai-agent/TROUBLESHOOTING.md) | OpenAI auth, tool errors, context not working, LangChain version conflicts |
+| Dashboard | [4-dashboard/TROUBLESHOOTING.md](4-dashboard/TROUBLESHOOTING.md) | Login failures, data not showing, Docker build, TLS, AI chat offline |
+
+Step-specific troubleshooting (inline `<details>` blocks) also appears after each setup step above.
+
+### Quick Reference — Most Common Issues
+
+| Symptom | Most Likely Cause | Fix |
+|---|---|---|
+| Pod `CrashLoopBackOff` (platform-api) | Wrong DB password in K8s secret | See [2-platform-api/TROUBLESHOOTING.md](2-platform-api/TROUBLESHOOTING.md) |
+| "Invalid credentials" on login | Using `name:` field instead of YAML key | See [4-dashboard/TROUBLESHOOTING.md](4-dashboard/TROUBLESHOOTING.md) |
+| Cost data shows $0 after sync | MI missing `Cost Management Reader` role | See [1-infrastructure/TROUBLESHOOTING.md](1-infrastructure/TROUBLESHOOTING.md) |
+| AI chat says "Agent: Offline" | AI agent pod not running or wrong URL | See [3-ai-agent/TROUBLESHOOTING.md](3-ai-agent/TROUBLESHOOTING.md) |
+| Sankey chart `ValueError: Invalid color` | 8-digit hex in Plotly link colors | Fixed in current `Home.py` — rebuild dashboard image |
+| Certificate stuck in Pending | DNS not propagated before Ingress applied | See [1-infrastructure/TROUBLESHOOTING.md](1-infrastructure/TROUBLESHOOTING.md) |
+
+### General Pod Diagnostics
 
 ```bash
+# Any namespace, any pod
+kubectl get pods -A
 kubectl describe pod <pod-name> -n <namespace>
-kubectl logs <pod-name> -n <namespace> --previous
-```
+kubectl logs <pod-name> -n <namespace> --tail=100
+kubectl logs <pod-name> -n <namespace> --previous   # logs of last crash
 
-### Cost sync returns 0 rows
+# Check secrets are present
+kubectl get secrets -A | grep finops
 
-1. Ensure `AZURE_SUBSCRIPTION_IDS` is set correctly in `secrets.env` and the secret
-2. Verify the Managed Identity has `Cost Management Reader` role on the subscription
-3. Check that data exists in Azure Cost Management (new subscriptions may have a 24-48h delay)
-
-### AI Agent chat fails
-
-1. Check AI Agent pod is Running: `kubectl get pods -n ai`
-2. Verify `AZURE_OPENAI_ENDPOINT` and `AZURE_OPENAI_DEPLOYMENT` in `finops-ai-secret`
-3. Test agent health:
-   ```bash
-   kubectl port-forward -n ai svc/finops-ai-agent-svc 8000:80
-   curl http://localhost:8000/health
-   ```
-
-### Workload Identity not working
-
-```bash
-# Check OIDC issuer is set on AKS
-az aks show --name finops-aks --resource-group rg-finops-prod-core \
-  --query oidcIssuerProfile.issuerUrl -o tsv
-
-# Check federated credentials exist
-az identity federated-credential list \
-  --identity-name mi-finops-prod --resource-group rg-finops-prod-core
-
-# Check service account annotation
-kubectl get sa cost-platform-sa -n platform -o yaml | grep azure.workload
+# Check service account annotations (Workload Identity)
+kubectl get sa -n platform cost-platform-sa -o yaml | grep azure.workload
+kubectl get sa -n ai cost-ai-sa -o yaml | grep azure.workload
 ```

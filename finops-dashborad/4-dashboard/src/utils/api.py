@@ -49,11 +49,14 @@ def ai_health() -> dict | None:
         return None
 
 
-def ai_chat(messages: list[dict]) -> dict | None:
+def ai_chat(messages: list[dict], context: str | None = None) -> dict | None:
     try:
+        payload: dict = {"messages": messages}
+        if context:
+            payload["context"] = context
         r = requests.post(
             f"{AI_AGENT_URL}/chat",
-            json={"messages": messages},
+            json=payload,
             timeout=60,
         )
         r.raise_for_status()

@@ -79,6 +79,25 @@ hr { border-color: rgba(255,255,255,0.06) !important; }
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 3px; }
+/* Compact download buttons — Azure-portal style */
+.stDownloadButton > button {
+    background: rgba(255,255,255,0.04) !important;
+    border: 1px solid rgba(255,255,255,0.12) !important;
+    color: #94a3b8 !important;
+    border-radius: 6px !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    padding: 5px 10px !important;
+    letter-spacing: 0.04em;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+.stDownloadButton > button:hover {
+    background: rgba(0,120,212,0.15) !important;
+    border-color: rgba(0,120,212,0.4) !important;
+    color: #60a5fa !important;
+    transform: none !important;
+}
 .chat-user {
     background: linear-gradient(135deg, #0078D4 0%, #005a9e 100%);
     border-radius: 16px 16px 4px 16px; padding: 10px 14px;
@@ -146,4 +165,16 @@ COLORS = {
     "red":    "#f87171",
     "teal":   "#38bdf8",
     "pink":   "#f472b6",
+}
+
+# Plotly modebar config — keep zoom/pan/save-PNG, remove clutter
+PLOTLY_CONFIG: dict = {
+    "displayModeBar": True,
+    "displaylogo": False,
+    "modeBarButtonsToRemove": [
+        "select2d", "lasso2d", "autoScale2d",
+        "toggleSpikelines", "hoverClosestCartesian",
+        "hoverCompareCartesian", "resetScale2d",
+    ],
+    "toImageButtonOptions": {"format": "png", "scale": 2},
 }
