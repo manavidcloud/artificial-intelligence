@@ -13,6 +13,7 @@ Adding a new auth backend:
 """
 
 import os
+import time
 import logging
 from pathlib import Path
 
@@ -23,6 +24,7 @@ import yaml
 logger = logging.getLogger(__name__)
 
 AUTH_MODE = os.getenv("AUTH_MODE", "local").lower().strip()
+SESSION_TIMEOUT_SECS = 10 * 60  # 10 minutes idle → auto sign-out
 
 _USERS_FILE = Path(__file__).parent / "users.yaml"
 
@@ -344,7 +346,15 @@ def _verify(username: str, password: str) -> dict | None:
 def require_auth() -> None:
     """Show login wall if the user is not authenticated. Calls st.stop() on failure."""
     if st.session_state.get("_user"):
-        return
+        # Auto sign-out after SESSION_TIMEOUT_SECS of inactivity
+        last = st.session_state.get("_last_activity", time.time())
+        if time.time() - last > SESSION_TIMEOUT_SECS:
+            st.session_state.clear()
+            st.warning("Your session expired after 10 minutes of inactivity. Please sign in again.")
+            # fall through to show the login form
+        else:
+            st.session_state["_last_activity"] = time.time()
+            return
 
     st.markdown(LOGIN_CSS, unsafe_allow_html=True)
 
@@ -420,8 +430,8 @@ def require_auth() -> None:
 
         auth_label = {"local": "Local credentials", "oauth": "Azure AD SSO", "ldap": "LDAP / AD"}.get(AUTH_MODE, AUTH_MODE)
         st.markdown(
-            f'<p class="login-footer">FinOps Platform v1.0 &nbsp;&bull;&nbsp; '
-            f'Auth: {auth_label}</p>',
+            f'<p class="login-footer">FinOps Platform v1.0 &nbsp;&bull;&nbsp; Auth: {auth_label}<br>'
+            f'Developed by <strong style="color:#60a5fa;">Mohamad Abdul Navid</strong></p>',
             unsafe_allow_html=True,
         )
         st.markdown("</div>", unsafe_allow_html=True)
@@ -430,7 +440,9 @@ def require_auth() -> None:
 
 
 def sidebar_user() -> None:
-    """Render user chip and logout button in the sidebar."""
+    """Render user chip, currency selector, logout button, and about in the sidebar."""
+    from utils.currency import currency_selector
+
     user = st.session_state.get("_user", {})
     if not user:
         return
@@ -453,6 +465,17 @@ def sidebar_user() -> None:
     if st.sidebar.button("Logout", use_container_width=True, key="_logout_btn"):
         st.session_state.clear()
         st.rerun()
+
+    st.sidebar.markdown("---")
+    currency_selector()
+
+    with st.sidebar.expander("About"):
+        st.caption(
+            "**FinOps AI Dashboard** v1.0\n\n"
+            "Azure Cost Intelligence Platform with AI-powered analysis.\n\n"
+            "Developed by **Mohamad Abdul Navid**"
+        )
+        st.caption("Session auto-expires after 10 min idle.")
 
 
 def is_admin() -> bool:

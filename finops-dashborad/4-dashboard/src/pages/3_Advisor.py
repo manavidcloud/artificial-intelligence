@@ -1,4 +1,5 @@
 """FinOps Dashboard — Azure Advisor Recommendations Page."""
+import io
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
@@ -14,6 +15,8 @@ apply_theme()
 # ─────────────────────────────────────────────────────────────────────────────
 # Sidebar
 # ─────────────────────────────────────────────────────────────────────────────
+sub_id_to_name: dict = {}
+
 with st.sidebar:
     sidebar_user()
     st.markdown("---")
@@ -24,6 +27,8 @@ with st.sidebar:
         sub_map = {"All": None}
         for s in subs_resp["data"]:
             sub_map[s.get("name", s["id"])] = s["id"]
+        # reverse map: uuid → friendly name (for display in recommendations)
+        sub_id_to_name = {v: k for k, v in sub_map.items() if v is not None}
         selected   = st.selectbox("Subscription", list(sub_map.keys()))
         sub_filter = sub_map[selected]
     st.markdown("---")
@@ -129,14 +134,16 @@ if advisor_resp and advisor_resp.get("data"):
         savings = rec.get("potential_savings") or 0
         desc    = rec.get("short_description", "No description")
         savings_str = f"${savings:,.2f} {rec.get('currency', 'USD')}" if savings else "N/A"
+        sub_id   = rec.get("subscription_id", "")
+        sub_name = sub_id_to_name.get(sub_id, sub_id) if sub_id else "N/A"
 
         with st.expander(f"**[{impact}]** {desc[:90]}{'…' if len(desc) > 90 else ''}"):
             col_info, col_savings = st.columns([3, 1])
             with col_info:
                 st.markdown(f"**Resource:** `{rec.get('resource_name', 'N/A')}`")
                 st.markdown(f"**Description:** {desc}")
-                if rec.get("subscription_id"):
-                    st.caption(f"Subscription: {rec['subscription_id']}")
+                if sub_id:
+                    st.caption(f"Subscription: {sub_name}")
                 if rec.get("resource_id"):
                     st.caption(f"Resource ID: {rec['resource_id']}")
             with col_savings:
@@ -150,15 +157,45 @@ if advisor_resp and advisor_resp.get("data"):
                     unsafe_allow_html=True,
                 )
 
-    # Summary table
+    # ── Export table ────────────────────────────────────────────────────────
     st.divider()
     st.subheader("Export Data")
+
     df_export = pd.DataFrame(data)
     display_cols = ["subscription_id", "impact", "short_description", "resource_name", "potential_savings", "currency"]
     available = [c for c in display_cols if c in df_export.columns]
     df_show = df_export[available].copy()
+
+    # Replace subscription UUIDs with friendly names
+    if "subscription_id" in df_show.columns:
+        df_show["subscription_id"] = df_show["subscription_id"].apply(
+            lambda x: sub_id_to_name.get(x, x) if x else x
+        )
+
     df_show.columns = [c.replace("_", " ").title() for c in df_show.columns]
     st.dataframe(df_show, use_container_width=True)
+
+    # Download buttons
+    col_csv, col_xlsx = st.columns(2)
+    with col_csv:
+        st.download_button(
+            label="⬇ Download CSV",
+            data=df_show.to_csv(index=False).encode("utf-8"),
+            file_name="advisor_recommendations.csv",
+            mime="text/csv",
+            use_container_width=True,
+        )
+    with col_xlsx:
+        _buf = io.BytesIO()
+        with pd.ExcelWriter(_buf, engine="openpyxl") as _w:
+            df_show.to_excel(_w, index=False, sheet_name="Recommendations")
+        st.download_button(
+            label="⬇ Download Excel",
+            data=_buf.getvalue(),
+            file_name="advisor_recommendations.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True,
+        )
 
 else:
     st.info("No recommendations found. Adjust impact filter or run a sync from the Home page.")

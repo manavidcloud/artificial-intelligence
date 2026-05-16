@@ -24,6 +24,7 @@
    - [Step 6 — Deploy to AKS](#step-6--deploy-to-aks)
    - [Step 7 — Expose via Ingress](#step-7--expose-via-ingress)
    - [Step 8 — First Login & Initial Sync](#step-8--first-login--initial-sync)
+   - [Step 9 — Sanity Check](#step-9--sanity-check)
 7. [Dashboard Pages](#dashboard-pages)
 8. [API Reference](#api-reference)
 9. [AI Agent](#ai-agent)
@@ -133,6 +134,9 @@ finops-dashborad/
 ├── config.yaml                      # Single source of truth — edit first
 ├── secrets.env.template             # Template for secrets (never commit secrets.env)
 ├── .gitignore
+│
+├── sanity-check/
+│   └── sanity.sh                    # Post-deploy health check script
 │
 ├── 1-infrastructure/
 │   └── scripts/
@@ -1064,6 +1068,101 @@ kubectl delete secret finops-dashboard-users -n frontend
 kubectl create secret generic finops-dashboard-users \
   --from-file=users.yaml=4-dashboard/src/users.yaml -n frontend
 kubectl rollout restart deployment/finops-dashboard -n frontend
+```
+
+</details>
+
+---
+
+### Step 9 — Sanity Check
+
+After the full deployment, run the sanity check script to verify every component is healthy:
+
+```bash
+chmod +x sanity-check/sanity.sh
+./sanity-check/sanity.sh
+```
+
+The script checks (in order):
+
+| Check | What it tests |
+|---|---|
+| 1. kubectl connectivity | Can reach the AKS API server |
+| 2. Pod health | All 3 pods Running + Ready (platform, ai, frontend namespaces) |
+| 3. Ingress + TLS | Ingress objects exist; cert-manager certs are Ready and not expired |
+| 4. Platform API health | `/health` endpoint responds (external URL or in-cluster exec) |
+| 5. AI Agent health | `/health` endpoint responds (external URL or in-cluster exec) |
+| 6. Dashboard reachability | Dashboard URL returns HTTP 200/302 |
+| 7. Platform API logs | Last 20 lines shown; flags password/SSL errors automatically |
+
+**Expected passing output:**
+
+```
+[PASS] kubectl can reach the cluster
+[PASS] Platform API  (namespace: platform, status: Running)
+[PASS] AI Agent      (namespace: ai, status: Running)
+[PASS] Dashboard     (namespace: frontend, status: Running)
+[PASS] Ingress finops-dashboard-ingress (ns: frontend) exists
+[PASS] TLS cert finops-dashboard-tls (ns: frontend) — Ready, expires: 2025-08-13T...
+[PASS] Platform API health OK via https://api.manmas.online/health
+[PASS] AI Agent health OK via https://ai.manmas.online/health
+[PASS] Dashboard reachable at https://app.manmas.online (HTTP 200)
+============================================================
+  All checks passed.
+============================================================
+```
+
+**Override URLs** if you use different domains or port-forward:
+```bash
+DASHBOARD_URL=http://localhost:8501 \
+API_URL=http://localhost:8080 \
+AI_URL=http://localhost:8000 \
+./sanity-check/sanity.sh
+```
+
+<details>
+<summary><strong>Troubleshooting — Step 9 (Sanity Check)</strong></summary>
+
+**`[FAIL] kubectl cannot reach the cluster`**
+
+Your kubeconfig is stale or missing:
+```bash
+az aks get-credentials --name finops-aks --resource-group rg-finops-prod-core --overwrite-existing
+kubectl cluster-info
+```
+
+---
+
+**`[FAIL] Platform API — status: CrashLoopBackOff`**
+
+Check which error is causing the crash:
+```bash
+kubectl logs -n platform -l app=finops-platform-api --tail=50 --previous
+```
+Common causes and fixes are documented in [Troubleshooting — Step 6](#step-6--deploy-to-aks).
+
+---
+
+**`[FAIL] TLS cert not Ready`**
+
+cert-manager is still issuing or the HTTP-01 challenge failed:
+```bash
+kubectl describe certificate finops-dashboard-tls -n frontend
+kubectl describe certificaterequest -n frontend
+kubectl describe order -n frontend
+kubectl logs -n cert-manager -l app=cert-manager --tail=30
+```
+Ensure DNS resolves to the ingress IP and port 80 is open.
+
+---
+
+**`[FAIL] Dashboard returned HTTP 000`**
+
+The NGINX Ingress LoadBalancer IP may have changed, or DNS is pointing to the wrong IP:
+```bash
+kubectl get svc -n ingress-nginx ingress-nginx-controller
+# Compare EXTERNAL-IP with your DNS A record
+nslookup app.manmas.online
 ```
 
 </details>

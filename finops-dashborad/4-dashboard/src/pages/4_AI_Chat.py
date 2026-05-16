@@ -55,6 +55,33 @@ if "_messages" not in st.session_state:
     st.session_state["_messages"] = []
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Call AI if the last message is from the user (handles both chat_input and
+# suggestion buttons — both paths end with a user message in state then rerun)
+# ─────────────────────────────────────────────────────────────────────────────
+if st.session_state["_messages"] and st.session_state["_messages"][-1]["role"] == "user":
+    with st.spinner("FinOps AI is thinking…"):
+        resp = ai_chat(st.session_state["_messages"])
+
+    if resp:
+        ai_msg = {
+            "role":       "assistant",
+            "content":    resp.get("response", "No response."),
+            "tool_calls": resp.get("tool_calls", []),
+        }
+    else:
+        ai_msg = {
+            "role":       "assistant",
+            "content":    (
+                "I couldn't reach the AI agent. Please verify that the AI agent "
+                "service is running (`kubectl get pods -n ai`) and try again."
+            ),
+            "tool_calls": [],
+        }
+
+    st.session_state["_messages"].append(ai_msg)
+    st.rerun()
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Chat history display
 # ─────────────────────────────────────────────────────────────────────────────
 for msg in st.session_state["_messages"]:
@@ -96,31 +123,10 @@ if not st.session_state["_messages"]:
             st.rerun()
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Chat input
+# Chat input — append user message and rerun; AI is called at top of next render
 # ─────────────────────────────────────────────────────────────────────────────
 prompt = st.chat_input("Ask about your Azure costs, resources, or optimization opportunities…")
 
 if prompt:
     st.session_state["_messages"].append({"role": "user", "content": prompt})
-
-    with st.spinner("FinOps AI is thinking…"):
-        resp = ai_chat(st.session_state["_messages"])
-
-    if resp:
-        ai_msg = {
-            "role":       "assistant",
-            "content":    resp.get("response", "No response."),
-            "tool_calls": resp.get("tool_calls", []),
-        }
-    else:
-        ai_msg = {
-            "role":       "assistant",
-            "content":    (
-                "I couldn't reach the AI agent. Please verify that the AI agent "
-                "service is running (`kubectl get pods -n ai`) and try again."
-            ),
-            "tool_calls": [],
-        }
-
-    st.session_state["_messages"].append(ai_msg)
     st.rerun()

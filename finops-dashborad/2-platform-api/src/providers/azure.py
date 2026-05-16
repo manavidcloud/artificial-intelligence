@@ -7,19 +7,11 @@ recommendations from Azure into the local PostgreSQL database.
 
 import os
 import logging
+import requests
 from datetime import datetime, timedelta
 from typing import List
 
 from azure.identity import DefaultAzureCredential
-from azure.mgmt.costmanagement import CostManagementClient
-from azure.mgmt.costmanagement.models import (
-    QueryDefinition,
-    QueryTimePeriod,
-    GranularityType,
-    QueryDataset,
-    QueryAggregation,
-    QueryGrouping,
-)
 from azure.mgmt.resourcegraph import ResourceGraphClient
 from azure.mgmt.resourcegraph.models import QueryRequest
 from azure.mgmt.advisor import AdvisorManagementClient
@@ -28,6 +20,9 @@ from sqlalchemy.orm import Session
 
 from .base import CloudProvider
 from ..models import Subscription, CostRecord, Resource, AdvisorRecommendation
+
+COST_MGMT_API = "https://management.azure.com"
+COST_MGMT_API_VERSION = "2023-11-01"
 
 logger = logging.getLogger(__name__)
 
@@ -124,7 +119,7 @@ class AzureProvider(CloudProvider):
     # ------------------------------------------------------------------
 
     def sync_costs(self, db: Session, days: int = 30) -> int:
-        """Fetch cost data from Azure Cost Management and upsert into cost_records."""
+        """Fetch cost data from Azure Cost Management REST API and upsert into cost_records."""
         sub_ids = _subscription_ids()
         if not sub_ids:
             logger.warning("AZURE_SUBSCRIPTION_IDS is empty – skipping cost sync.")
@@ -135,86 +130,111 @@ class AzureProvider(CloudProvider):
 
         for sub_id in sub_ids:
             try:
-                client = CostManagementClient(credential, sub_id)
-                scope = f"/subscriptions/{sub_id}"
+                token = credential.get_token(f"{COST_MGMT_API}/.default").token
+                headers = {
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json",
+                }
 
-                time_from = datetime.utcnow() - timedelta(days=days)
-                time_to = datetime.utcnow()
+                time_from = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%dT00:00:00Z")
+                time_to = datetime.utcnow().strftime("%Y-%m-%dT23:59:59Z")
 
-                body = QueryDefinition(
-                    type="ActualCost",
-                    timeframe="Custom",
-                    time_period=QueryTimePeriod(
-                        from_property=time_from,
-                        to=time_to,
-                    ),
-                    dataset=QueryDataset(
-                        granularity=GranularityType.DAILY,
-                        aggregation={
-                            "totalCost": QueryAggregation(name="Cost", function="Sum")
+                url = (
+                    f"{COST_MGMT_API}/subscriptions/{sub_id}"
+                    f"/providers/Microsoft.CostManagement/query"
+                    f"?api-version={COST_MGMT_API_VERSION}"
+                )
+                body = {
+                    "type": "ActualCost",
+                    "timeframe": "Custom",
+                    "timePeriod": {"from": time_from, "to": time_to},
+                    "dataset": {
+                        "granularity": "Daily",
+                        "aggregation": {
+                            "totalCost": {"name": "Cost", "function": "Sum"}
                         },
-                        grouping=[
-                            QueryGrouping(type="Dimension", name="ServiceName"),
-                            QueryGrouping(type="Dimension", name="ResourceGroupName"),
+                        "grouping": [
+                            {"type": "Dimension", "name": "ServiceName"},
+                            {"type": "Dimension", "name": "ResourceGroupName"},
                         ],
-                    ),
+                    },
+                }
+
+                resp = requests.post(url, headers=headers, json=body, timeout=60)
+                resp.raise_for_status()
+                data = resp.json()
+
+                # Azure wraps results in "properties" at the top level
+                props = data.get("properties", data)
+                columns = props.get("columns", [])
+                rows = props.get("rows", [])
+
+                logger.info(
+                    "sync_costs: sub=%s columns=%s rows=%d",
+                    sub_id, [c["name"] for c in columns], len(rows),
                 )
 
-                result = client.query.usage(scope=scope, parameters=body)
+                # Build case-insensitive column index
+                col_index = {c["name"].lower(): i for i, c in enumerate(columns)}
 
-                # Build column name → index map from result metadata
-                col_index: dict = {}
-                if result.columns:
-                    for idx, col in enumerate(result.columns):
-                        col_index[col.name.lower()] = idx
+                # Flexible column name matching — handles different API versions
+                cost_key = next(
+                    (k for k in col_index if k in ("cost", "pretaxcost", "costinbillingcurrency")), None
+                )
+                date_key = next(
+                    (k for k in col_index if k in ("usagedate", "date", "billingperiodstartdate")), None
+                )
+                service_key = next((k for k in col_index if "service" in k), None)
+                rg_key = next(
+                    (k for k in col_index if "resourcegroup" in k or "resource_group" in k), None
+                )
+                currency_key = next((k for k in col_index if "currency" in k), None)
 
                 rows_for_sub = 0
-                if result.rows:
-                    for row in result.rows:
-                        try:
-                            cost = float(row[col_index.get("cost", col_index.get("totalcost", 0))])
-                            currency_val = str(row[col_index.get("currency", -1)]) if "currency" in col_index else "USD"
-                            service = str(row[col_index.get("servicename", col_index.get("service_name", 1))])
-                            rg = str(row[col_index.get("resourcegroupname", col_index.get("resource_group_name", 2))])
+                for row in rows:
+                    try:
+                        cost = float(row[col_index[cost_key]]) if cost_key else 0.0
+                        service = str(row[col_index[service_key]]) if service_key else "Unknown"
+                        rg = str(row[col_index[rg_key]]) if rg_key else ""
+                        currency_val = str(row[col_index[currency_key]]) if currency_key else "USD"
 
-                            # Date can be an int (YYYYMMDD) or a string
-                            raw_date = row[col_index.get("usagedate", col_index.get("billingperiodstartdate", 3))]
-                            if isinstance(raw_date, int):
-                                date_val = datetime.strptime(str(raw_date), "%Y%m%d").date()
-                            else:
-                                date_val = datetime.fromisoformat(str(raw_date)[:10]).date()
+                        raw_date = row[col_index[date_key]] if date_key else None
+                        if raw_date is None:
+                            continue
+                        if isinstance(raw_date, int):
+                            date_val = datetime.strptime(str(raw_date), "%Y%m%d").date()
+                        else:
+                            date_val = datetime.fromisoformat(str(raw_date)[:10]).date()
 
-                            stmt = (
-                                pg_insert(CostRecord)
-                                .values(
-                                    subscription_id=sub_id,
-                                    date=date_val,
-                                    service_name=service or "Unknown",
-                                    resource_group=rg or "",
-                                    resource_id=None,
-                                    amount=cost,
-                                    currency=currency_val or "USD",
-                                    synced_at=datetime.utcnow(),
-                                )
-                                .on_conflict_do_update(
-                                    constraint="uq_cost_record",
-                                    set_={
-                                        "amount": cost,
-                                        "currency": currency_val or "USD",
-                                        "synced_at": datetime.utcnow(),
-                                    },
-                                )
+                        stmt = (
+                            pg_insert(CostRecord)
+                            .values(
+                                subscription_id=sub_id,
+                                date=date_val,
+                                service_name=service or "Unknown",
+                                resource_group=rg or "",
+                                resource_id=None,
+                                amount=cost,
+                                currency=currency_val or "USD",
+                                synced_at=datetime.utcnow(),
                             )
-                            db.execute(stmt)
-                            rows_for_sub += 1
-
-                        except Exception as row_exc:
-                            logger.warning(
-                                "sub=%s: skipping cost row due to error: %s | row=%s",
-                                sub_id,
-                                row_exc,
-                                row,
+                            .on_conflict_do_update(
+                                constraint="uq_cost_record",
+                                set_={
+                                    "amount": cost,
+                                    "currency": currency_val or "USD",
+                                    "synced_at": datetime.utcnow(),
+                                },
                             )
+                        )
+                        db.execute(stmt)
+                        rows_for_sub += 1
+
+                    except Exception as row_exc:
+                        logger.warning(
+                            "sub=%s: skipping cost row: %s | row=%s",
+                            sub_id, row_exc, row,
+                        )
 
                 db.commit()
                 total_rows += rows_for_sub
