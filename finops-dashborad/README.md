@@ -10,6 +10,10 @@
 2. [Architecture](#architecture)
 3. [Project Structure](#project-structure)
 4. [How Everything Works](#how-everything-works)
+   - [Authentication](#authentication)
+   - [Multi-Cloud Architecture & Extensibility](#multi-cloud-architecture--extensibility)
+   - [Azure Identity (Workload Identity)](#azure-identity-workload-identity)
+   - [AI Agent Tool Calling](#ai-agent-tool-calling)
 5. [Prerequisites](#prerequisites)
 6. [Step-by-Step Setup From Scratch](#step-by-step-setup-from-scratch)
    - [Step 1 — Configure `config.yaml`](#step-1--configure-configyaml)
@@ -202,16 +206,74 @@ PostgreSQL  cost_records table
 Streamlit  1_Costs.py  →  charts + tables
 ```
 
-### Authentication (No Azure AD needed by default)
+### Authentication
 
-The dashboard uses **local file-based auth** (YAML + bcrypt):
+The auth backend is selected by the `AUTH_MODE` environment variable injected at runtime. The Docker image has **no default baked in** — the app falls back to `local` when `AUTH_MODE` is absent. Always inject it via a Kubernetes Secret or ConfigMap, never via `ENV` in the Dockerfile (Docker BuildKit lints "AUTH" variable names as sensitive).
 
-1. Copy `users.yaml.template` → `users.yaml`
+| `AUTH_MODE` | Backend | Status |
+|---|---|---|
+| `local` | YAML + bcrypt | Ready — default |
+| `oauth` | Azure AD / Entra ID SSO | Stub ready — needs `msal` wired in |
+| `ldap` | Active Directory / OpenLDAP | Stub ready — needs `ldap3` wired in |
+| _(any new value)_ | Custom backend | Add `_verify_<mode>()` in `auth.py` |
+
+#### Local auth (current)
+
+1. Copy `4-dashboard/src/users.yaml.template` → `users.yaml`
 2. Add usernames and plaintext passwords
-3. On first login, plaintext passwords are **auto-upgraded to bcrypt hashes** and written back
-4. Session is stored in Streamlit `session_state` — no JWT, no cookies
+3. On first login, plaintext passwords are **auto-upgraded to bcrypt hashes** and written back to `users.yaml`
+4. Session is stored in Streamlit `session_state` — no JWT, no cookies, no external dependency
 
-To enable **Azure AD / Entra ID SSO**, set `OAUTH_CLIENT_ID` and `OAUTH_CLIENT_SECRET` in `secrets.env` (integration point is in `auth.py` — the SSO button is rendered but the backend flow requires adding `msal` library).
+#### Azure AD / Entra ID SSO (oauth)
+
+When you're ready to switch to Azure AD, follow these steps:
+
+1. **Register an app in Azure AD (Entra ID)**
+   - Go to Azure Portal → Entra ID → App Registrations → New Registration
+   - Set redirect URI: `https://app.manmas.online` (or your domain)
+   - Under API Permissions, add `User.Read` (Microsoft Graph, Delegated)
+   - Create a Client Secret and copy the value
+
+2. **Add env vars to `secrets.env`**
+   ```env
+   AUTH_MODE=oauth
+   OAUTH_CLIENT_ID=<app-registration-client-id>
+   OAUTH_CLIENT_SECRET=<client-secret-value>
+   OAUTH_TENANT_ID=<your-azure-tenant-id>
+   ```
+
+3. **Add `msal` to the dashboard requirements**
+   ```bash
+   echo "msal>=1.28.0" >> 4-dashboard/requirements.txt
+   ```
+
+4. **Implement `_verify_oauth()` in `auth.py`**
+   The stub is already in place with step-by-step MSAL instructions in the comments. Replace the `raise NotImplementedError` with the MSAL token acquisition block shown there.
+
+5. **Rebuild and redeploy the dashboard**
+   ```bash
+   docker build -t $ACR/finops-dashboard:latest 4-dashboard/
+   docker push $ACR/finops-dashboard:latest
+   kubectl rollout restart deployment -n frontend
+   ```
+
+> The SSO button is already rendered in the login UI — it activates automatically when `OAUTH_CLIENT_ID` is set in the environment.
+
+#### LDAP / Active Directory
+
+Same pattern as OAuth:
+1. Add `LDAP_SERVER`, `LDAP_BASE_DN`, `LDAP_DOMAIN` to `secrets.env` and set `AUTH_MODE=ldap`
+2. Add `ldap3` to `requirements.txt`
+3. Implement `_verify_ldap()` in `auth.py` (stub + instructions already in place)
+4. Rebuild and redeploy
+
+#### Adding any new auth backend
+
+1. Add `_verify_<mode>(username, password) → dict | None` in `auth.py`
+2. Add an `elif AUTH_MODE == "<mode>"` branch in `_verify()`
+3. Inject `AUTH_MODE=<mode>` via Kubernetes Secret at runtime — no image changes needed
+
+---
 
 ### Azure Identity (Workload Identity)
 
@@ -225,6 +287,83 @@ Pod in AKS  →  Projected Service Account Token (OIDC)
 ```
 
 This is set up by `setup.sh` (federated credentials) and `apply-secrets.sh` (service account annotations).
+
+---
+
+### Multi-Cloud Architecture & Extensibility
+
+The platform is designed for Azure today but built to support multiple clouds without touching the API or dashboard layers.
+
+#### How it works
+
+All cloud data fetching is isolated behind a single abstract interface:
+
+```python
+# 2-platform-api/src/providers/base.py
+class CloudProvider(ABC):
+    def sync_subscriptions(self, db) -> int: ...  # accounts / projects
+    def sync_costs(self, db, days: int) -> int: ...  # billing data
+    def sync_resources(self, db) -> int: ...         # resource inventory
+    def sync_advisor(self, db) -> int: ...           # cost recommendations
+```
+
+The active provider is selected at startup by the `CLOUD_PROVIDER` environment variable (default: `azure`):
+
+```
+CLOUD_PROVIDER=azure  →  providers/azure.py  (AzureProvider)   ✅ implemented
+CLOUD_PROVIDER=aws    →  providers/aws.py    (AWSProvider)      🔲 stub ready
+CLOUD_PROVIDER=gcp    →  providers/gcp.py    (GCPProvider)      🔲 stub ready
+```
+
+The Platform API (`main.py`), dashboard, and AI agent are **completely unaware** of which cloud is active — they only call the 4 methods above.
+
+#### Adding AWS support
+
+1. **Create `2-platform-api/src/providers/aws.py`**
+   ```python
+   import boto3
+   from .base import CloudProvider
+
+   class AWSProvider(CloudProvider):
+       def sync_subscriptions(self, db) -> int:
+           # boto3: organizations.list_accounts()
+           ...
+       def sync_costs(self, db, days: int) -> int:
+           # boto3: ce.get_cost_and_usage() (Cost Explorer)
+           ...
+       def sync_resources(self, db) -> int:
+           # boto3: resourcegroupstaggingapi.get_resources()
+           ...
+       def sync_advisor(self, db) -> int:
+           # boto3: support.describe_trusted_advisor_checks() + results
+           ...
+   ```
+
+2. **Add AWS SDK to requirements**
+   ```bash
+   echo "boto3>=1.34.0" >> 2-platform-api/requirements.txt
+   ```
+
+3. **Set env vars in `secrets.env`**
+   ```env
+   CLOUD_PROVIDER=aws
+   AWS_ACCESS_KEY_ID=...
+   AWS_SECRET_ACCESS_KEY=...
+   AWS_DEFAULT_REGION=us-east-1
+   AZURE_SUBSCRIPTION_IDS=<aws-account-ids>   # reuse same field, comma-separated
+   ```
+
+4. **Rebuild and redeploy Platform API and AI Agent** — dashboard needs no changes.
+
+#### Adding GCP support
+
+Same pattern: create `providers/gcp.py` implementing `GCPProvider`, use `google-cloud-billing` + `google-cloud-asset` SDKs, set `CLOUD_PROVIDER=gcp`.
+
+#### Multi-cloud (running Azure + AWS simultaneously)
+
+Currently the factory loads one provider per deployment. To support multiple clouds in a single instance, the API layer would need to be extended to fan out across multiple provider instances — the data model (`cost_records`, `resources`, etc.) already stores a `subscription_id` field that naturally differentiates accounts across clouds.
+
+---
 
 ### AI Agent Tool Calling
 
@@ -412,28 +551,49 @@ kubectl get serviceaccounts -n ai
 
 ### Step 5 — Build & Push Docker Images
 
+> **Important:** Use `docker buildx build --push` (not `docker build` + `docker push`). The cluster has a mixed architecture: the system nodepool is **amd64** and the apppool (`apppool`) is **ARM64** (`Standard_D2pds_v6`). Each image must be built for the correct platform(s) or the pod will fail with `no match for platform in manifest`.
+
 ```bash
 # Log in to ACR
 az acr login --name finopsacrmanmas
 
 ACR="finopsacrmanmas.azurecr.io"
 
-# Platform API
-docker build -t $ACR/finops-platform-api:latest 2-platform-api/
-docker push $ACR/finops-platform-api:latest
+# Platform API — amd64 only (nodeSelector: kubernetes.io/arch=amd64, runs on system nodepool)
+docker buildx build \
+  --platform linux/amd64 \
+  --push \
+  -t $ACR/finops-platform-api:latest \
+  2-platform-api/
 
-# AI Agent
-docker build -t $ACR/finops-ai-agent:latest 3-ai-agent/
-docker push $ACR/finops-ai-agent:latest
+# AI Agent — multi-arch (no nodeSelector, may land on amd64 system node or ARM apppool)
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  --push \
+  -t $ACR/finops-ai-agent:latest \
+  3-ai-agent/
 
-# Dashboard (copy users.yaml.template first)
+# Dashboard — amd64 only (nodeSelector: kubernetes.io/arch=amd64, runs on system nodepool)
+# Set up users first:
 cp 4-dashboard/src/users.yaml.template 4-dashboard/src/users.yaml
-# Edit users.yaml to set your passwords
-docker build -t $ACR/finops-dashboard:latest 4-dashboard/
-docker push $ACR/finops-dashboard:latest
+nano 4-dashboard/src/users.yaml   # set real usernames/passwords
+
+docker buildx build \
+  --platform linux/amd64 \
+  --push \
+  -t $ACR/finops-dashboard:latest \
+  4-dashboard/
 ```
 
-> **Security note:** `users.yaml` is in `.gitignore` — never commit it. In production, mount it from a Kubernetes Secret (see dashboard `deployment.yaml`).
+> **`users.yaml` is in `.gitignore` — never commit it.** The dashboard pod mounts it from a Kubernetes Secret (`finops-dashboard-users`). Create that secret before deploying:
+
+```bash
+kubectl create secret generic finops-dashboard-users \
+  --from-file=users.yaml=4-dashboard/src/users.yaml \
+  -n frontend
+```
+
+If the secret is missing, the pod starts but falls back to the `users.yaml` baked into the image (from template — no real passwords). Always create the secret before or right after Step 6.
 
 ---
 
@@ -810,3 +970,156 @@ sed -i 's/letsencrypt-staging/letsencrypt-prod/g' k8s/ingress.yaml
 kubectl delete secret finops-dashboard-tls -n frontend
 kubectl apply -f k8s/ingress.yaml
 ```
+
+---
+
+### CrashLoopBackOff: `ModuleNotFoundError: No module named 'six'`
+
+**Symptom:** platform-api pod crashes immediately on startup with:
+```
+File "...azure/mgmt/resourcegraph/models/_resource_graph_client_enums.py"
+ModuleNotFoundError: No module named 'six'
+```
+
+**Cause:** `azure-mgmt-resourcegraph==8.0.0` has a transitive dependency on `six` (a Python 2/3 compat library) that is not declared in its own package metadata.
+
+**Fix:** Already applied — `six` is explicitly listed in `2-platform-api/requirements.txt`. No action needed on a fresh build from this repo.
+
+---
+
+### CrashLoopBackOff: `AzureChatOpenAI proxies validation error`
+
+**Symptom:** ai-agent pod crashes with:
+```
+pydantic.v1.error_wrappers.ValidationError: 1 validation error for AzureChatOpenAI
+__root__
+  Client.__init__() got an unexpected keyword argument 'proxies'
+```
+
+**Cause:** `langchain-openai<0.1.9` passes `proxies=None` to the `openai` client constructor. `openai>=1.0.0` does not accept a `proxies` kwarg — it was removed in the 1.x rewrite. Additionally, `langchain-openai>=0.1.20` requires `openai>=1.40.0`.
+
+**Fix:** Already applied in `3-ai-agent/requirements.txt`:
+```
+langchain==0.2.16
+langchain-openai==0.1.23
+langgraph==0.2.14
+openai>=1.40.0,<2.0.0
+```
+No action needed on a fresh build from this repo.
+
+---
+
+### CrashLoopBackOff: `PostgreSQL — FATAL: no pg_hba.conf entry … no encryption`
+
+**Symptom:** platform-api pod crashes with:
+```
+FATAL:  no pg_hba.conf entry for host "10.0.2.x", user "pgadmin",
+        database "finops-db", no encryption
+```
+
+**Cause:** Azure PostgreSQL Flexible Server rejects connections that are not encrypted with SSL. The SQLAlchemy engine was not passing `sslmode=require`.
+
+**Fix:** Already applied in `2-platform-api/src/database.py`:
+```python
+engine = create_engine(DATABASE_URL, connect_args={"sslmode": "require"}, ...)
+```
+No action needed on a fresh build from this repo.
+
+---
+
+### CrashLoopBackOff: `PostgreSQL — FATAL: password authentication failed`
+
+**Symptom:** platform-api pod crashes with:
+```
+FATAL:  password authentication failed for user "pgadmin"
+```
+
+**Cause:** The `DB_PASSWORD` in the Kubernetes secret does not match the actual PostgreSQL admin password. This happens when `apply-secrets.sh` was run before `secrets.env` had the correct password, or when the PostgreSQL password was reset separately.
+
+**Fix:**
+
+1. Verify what password is in the K8s secret:
+   ```bash
+   kubectl get secret finops-platform-secret -n platform \
+     -o jsonpath='{.data.DB_PASSWORD}' | base64 -d; echo
+   ```
+
+2. If it does not match, reset the PostgreSQL password to match `secrets.env`, then re-sync the secret:
+   ```bash
+   # Reset DB password in Azure (use single quotes — see note below)
+   az postgres flexible-server update \
+     --resource-group rg-finops-prod-data \
+     --name finops-pgflex \
+     --admin-password 'AzFleX!admi9'
+
+   # Re-sync K8s secrets from secrets.env
+   bash 1-infrastructure/scripts/apply-secrets.sh
+
+   # Restart the deployment
+   kubectl rollout restart deployment/finops-platform-api -n platform
+   ```
+
+> **Bash tip:** Passwords containing `!` must be wrapped in **single quotes** in bash. Double quotes cause `bash: !xxx: event not found` because `!` triggers history expansion. Always use `'password'` not `"password"` when passing passwords on the command line.
+
+---
+
+### Docker build: `AUTH_*` variable warning / BuildKit lint error
+
+**Symptom:** `docker buildx build` for the dashboard fails or warns:
+```
+SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ENV "AUTH_MODE")
+```
+
+**Cause:** Docker BuildKit treats any env var containing `AUTH` in the name as potentially sensitive and lints against it in `ENV` instructions.
+
+**Fix:** Already applied — `ENV AUTH_MODE=local` was removed from `4-dashboard/Dockerfile`. The app already defaults to `local` via `os.getenv("AUTH_MODE", "local")`. `AUTH_MODE` is injected at runtime via the Kubernetes manifest (`4-dashboard/k8s/deployment.yaml`) as a plain `env` value, not via the image.
+
+---
+
+### Pod stuck in Pending: `Insufficient cpu` / `node(s) didn't match node affinity`
+
+**Symptom:**
+```
+0/2 nodes are available: 1 Insufficient cpu,
+1 node(s) didn't match Pod's node affinity/selector.
+```
+
+**Cause:** The system nodepool node has run out of CPU headroom for new pods.
+
+**Fix options:**
+
+Option A — Scale up the system nodepool node to a larger VM (requires cluster recreation or node pool update):
+```bash
+az aks nodepool update \
+  --cluster-name finops-aks \
+  --resource-group rg-finops-prod-core \
+  --name nodepool1 \
+  --node-vm-size Standard_B4als_v2
+```
+
+Option B — Move workloads to the `apppool` ARM node by removing the `nodeSelector` from their manifests (only for multi-arch images).
+
+Option C — Check what is consuming CPU and reduce limits:
+```bash
+kubectl top nodes
+kubectl top pods -A
+```
+
+The platform-api and dashboard deployments use `requests: cpu: 100m` — if the node is still exhausted, an KEDA-scaled or rogue pod may be consuming spare capacity.
+
+---
+
+### `az postgres flexible-server` fails with module error
+
+**Symptom:**
+```
+No module named 'azure.mgmt.rdbms.mysql_flexibleservers'
+```
+
+**Cause:** The Azure CLI's `rdbms` extension is installed but has a broken Python dependency (common after partial upgrades).
+
+**Fix:** Reinstall the Azure CLI from scratch:
+```bash
+curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+```
+Then re-login: `az login`.

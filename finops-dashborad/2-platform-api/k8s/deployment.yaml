@@ -32,7 +32,7 @@ metadata:
     app: finops-platform-api
     version: "1.0.0"
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: finops-platform-api
@@ -43,6 +43,8 @@ spec:
         azure.workload.identity/use: "true"
     spec:
       serviceAccountName: cost-platform-sa
+      nodeSelector:
+        kubernetes.io/arch: amd64
       topologySpreadConstraints:
         - maxSkew: 1
           topologyKey: kubernetes.io/hostname
@@ -52,7 +54,7 @@ spec:
               app: finops-platform-api
       containers:
         - name: finops-platform-api
-          image: finopsacr.azurecr.io/finops-platform-api:latest
+          image: finopsacrmanmas.azurecr.io/finops-platform-api:latest
           imagePullPolicy: Always
           ports:
             - name: http
@@ -159,10 +161,10 @@ spec:
             timeoutSeconds: 5
           resources:
             requests:
-              cpu: "200m"
+              cpu: "100m"
               memory: "256Mi"
             limits:
-              cpu: "1000m"
+              cpu: "500m"
               memory: "512Mi"
 
 ---

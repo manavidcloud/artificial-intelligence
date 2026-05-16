@@ -25,4 +25,4 @@ users:
 # username:
 #   password: "plaintext-or-bcrypt-hash"
 #   name: "Display Name"
-#   role: "admin" | "viewer"
+#   role: "admin" | "viewer" 
