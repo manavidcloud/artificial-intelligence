@@ -204,7 +204,7 @@ finops-dashborad/
 │       │   ├── 2_Resources.py       # Resource inventory + type drill-down
 │       │   ├── 3_Advisor.py         # 7-tab Advisor intelligence centre
 │       │   ├── 4_AI_Chat.py         # AI assistant chat interface
-│       │   ├── 5_OpenCost.py        # K8s cost allocation (OpenCost + Prometheus)
+│       │   ├── 5_OpenCost.py        # K8s cost intelligence — 6 tabs, anomaly detection, forecast, heatmap, health score, budget tracker, carbon
 │       │   └── 6_Settings.py        # Admin: manual sync, email tests, health
 │       └── utils/
 │           ├── api.py               # HTTP client for Platform API + AI Agent
@@ -1433,7 +1433,7 @@ nslookup app.manmas.online
 | Advisor | 💡 | 7-tab intelligence centre: Priority Matrix, All Recs, Savings Leaderboard, By RG, Rightsizing, Advisor Score radar, 12-month ROI |
 | AI Chat | 🤖 | Context-aware Q&A; Explain the Bill prompts; Optimization tips — backed by live Platform API data |
 | Settings | ⚙️ | Manual sync, email alert testing, system health (admin only) |
-| OpenCost | ☸️ | K8s cost allocation + Azure cloud billing; 8 tabs: Overview, Namespaces, Workloads, Nodes, Storage, Labels/Chargeback, ☁️ Cloud Costs, Savings |
+| OpenCost | ☸️ | World-class K8s cost intelligence · **6 tabs**: 🏠 Executive (health score A–F, quick wins, efficiency distribution, period comparison), 📊 Cost Allocation (anomaly detection, linear forecast, heatmap, efficiency grades, period Δ%), 🖥️ Assets (nodes + unit costs $/vCPU-hr, PV, unclaimed), 💡 Savings (ROI timeline, priority matrix, rightsizing, cluster, abandoned, underutil), ☁️ Cloud Costs (daily trend, by service, by category), 📋 Reports (chargeback, budget tracker, carbon footprint, export centre) |
 
 ### Home Page — What Each Section Does
 
