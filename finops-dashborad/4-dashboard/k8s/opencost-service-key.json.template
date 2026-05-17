@@ -1,0 +1,9 @@
+{
+  "subscriptionId": "<AZURE_SUBSCRIPTION_ID>",
+  "serviceKey": {
+    "appId":       "<SERVICE_PRINCIPAL_APP_ID>",
+    "displayName": "OpenCostAccess",
+    "password":    "<SERVICE_PRINCIPAL_PASSWORD>",
+    "tenant":      "<AZURE_TENANT_ID>"
+  }
+}

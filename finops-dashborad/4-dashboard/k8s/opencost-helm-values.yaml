@@ -1,38 +1,44 @@
 # OpenCost — Azure AKS cost allocation
-# helm install opencost opencost/opencost \
-#   --namespace opencost --create-namespace \
+# helm upgrade --install opencost opencost/opencost \
+#   --namespace opencost \
 #   -f 4-dashboard/k8s/opencost-helm-values.yaml
 
 opencost:
   exporter:
     defaultClusterId: "finops-aks"
-    cloudProviderApiKey: ""
+
+    # Specify which managed identity OpenCost should use for Rate Card pricing.
+    # With multiple MIs on the node, this prevents "multiple user assigned identities" errors.
+    extraEnv:
+      AZURE_CLIENT_ID: "d081e7e9-c233-463a-9c81-b5746ddf746d"
+
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+  # ── Prometheus ──────────────────────────────────────────────────────────────
   prometheus:
     internal:
       enabled: true
       serviceName: prometheus-server
       namespaceName: opencost
       port: 80
-  # cost-model API: port 9003 | UI: port 9090
-  # OPENCOST_URL in dashboard must point to 9003
+
+  # ── Cloud Cost integration (billing export → cloud-costs K8s secret) ────────
+  cloudIntegrationSecret: cloud-costs
+
+  # ── UI ───────────────────────────────────────────────────────────────────────
   ui:
     enabled: true
+
   metrics:
     serviceMonitor:
       enabled: false
 
-cloudCost:
-  enabled: false
-
-# Azure pricing — no key needed (uses public Azure pricing API)
-# For AWS/GCP: set cloudProviderApiKey to your billing API key
-azure:
-  cloud: public
-
-resources:
-  requests:
-    cpu: 100m
-    memory: 256Mi
-  limits:
-    cpu: 500m
-    memory: 512Mi
+  # ── Cloud Cost feature flag ──────────────────────────────────────────────────
+  cloudCost:
+    enabled: true

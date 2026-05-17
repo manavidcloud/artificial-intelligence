@@ -23,7 +23,7 @@
    - [Step 5 — Build & Push Docker Images](#step-5--build--push-docker-images)
    - [Step 6 — Deploy to AKS](#step-6--deploy-to-aks)
    - [Step 7 — Expose via Ingress](#step-7--expose-via-ingress)
-   - [Step 7b — Install OpenCost + Prometheus](#step-7b--install-opencost--prometheus-k8s-cost-allocation)
+   - [Step 7b — Install OpenCost + Prometheus + Azure Integration](#step-7b--install-opencost--prometheus-k8s-cost-allocation)
    - [Step 8 — First Login & Initial Sync](#step-8--first-login--initial-sync)
    - [Step 9 — Sanity Check](#step-9--sanity-check)
 7. [Dashboard Pages & Features](#dashboard-pages--features)
@@ -68,7 +68,7 @@ User → Streamlit Dashboard → Platform API → PostgreSQL
 ┌──────────────┐  ┌──────────────────┐  ┌─────────────┐  ┌──────────────────┐
 │ 4-Dashboard  │  │ 2-Platform API   │  │ 3-AI Agent  │  │ 5-OpenCost       │
 │ (Streamlit)  │─▶│ (FastAPI)        │◀─│ (LangGraph) │  │ K8s cost alloc   │
-│ port 8501    │  │ port 8080        │  │ port 8000   │  │ port 9090        │
+│ port 8501    │  │ port 8080        │  │ port 8000   │  │ UI:9090 API:9003 │
 └──────────────┘  └────────┬─────────┘  └─────────────┘  └────────┬─────────┘
         │                  │   (AI calls Platform API)              │
         │                  │                                        │
@@ -154,7 +154,8 @@ finops-dashborad/
 ├── 1-infrastructure/
 │   └── scripts/
 │       ├── setup.sh                 # Full Azure infrastructure provisioner
-│       └── apply-secrets.sh         # K8s namespaces, secrets, service accounts
+│       ├── apply-secrets.sh         # K8s namespaces, secrets, service accounts
+│       └── setup-opencost-azure.sh  # OpenCost Azure integration (Rate Card + billing export)
 │
 ├── 2-platform-api/                  # FastAPI backend — data sync & REST API
 │   ├── Dockerfile
@@ -187,9 +188,11 @@ finops-dashborad/
 │   ├── requirements.txt
 │   ├── TROUBLESHOOTING.md
 │   ├── k8s/
-│   │   ├── deployment.yaml                   # Namespace, Deployment, Service + OPENCOST_URL
-│   │   ├── opencost-prometheus-values.yaml   # Prometheus Helm values (AKS scrape config)
-│   │   └── opencost-helm-values.yaml         # OpenCost Helm values (Azure pricing)
+│   │   ├── deployment.yaml                          # Namespace, Deployment, Service (OPENCOST_URL: port 9003)
+│   │   ├── opencost-prometheus-values.yaml          # Prometheus Helm values (AKS scrape config)
+│   │   ├── opencost-helm-values.yaml                # OpenCost Helm values (Azure pricing + cloud costs)
+│   │   ├── opencost-service-key.json.template       # Rate Card SP key template (never commit the real file)
+│   │   └── opencost-cloud-integration.json.template # Billing export config template (never commit the real file)
 │   └── src/
 │       ├── Home.py                  # Overview: KPIs, daily trend, top services
 │       ├── auth.py                  # Login wall — local/oauth/ldap (AUTH_MODE)
@@ -768,9 +771,9 @@ ai           finops-ai-agent-xxx        1/1   Running
 frontend     finops-dashboard-xxx       1/1   Running
 ```
 
-> **OpenCost (☸️ page):** The dashboard already includes the OpenCost page and is
-> pre-configured to talk to `http://opencost.opencost.svc.cluster.local:9090`.
-> Deploy OpenCost itself after this step — see **Step 7b** below (Prometheus + OpenCost Helm install).
+> **OpenCost (☸️ page):** The dashboard is pre-configured to talk to
+> `http://opencost.opencost.svc.cluster.local:9003` (cost-model API port — not 9090 which is the UI).
+> Deploy OpenCost after this step — see **Step 7b** below.
 > The page renders immediately; cost data appears once OpenCost + Prometheus are running.
 
 <details>
@@ -1037,19 +1040,21 @@ You're on the staging issuer. Staging certs are valid but not trusted by browser
 
 ### Step 7b — Install OpenCost + Prometheus (K8s Cost Allocation)
 
-This wires up the ☸️ OpenCost page in the dashboard. Prometheus scrapes AKS node/pod metrics; OpenCost calculates per-namespace/workload costs.
+This wires up the ☸️ OpenCost page in the dashboard. Prometheus scrapes AKS node/pod metrics; OpenCost calculates per-namespace/workload/node costs and optionally ingests Azure billing export data for the ☁️ Cloud Costs tab.
 
-**Install Prometheus:**
+#### 7b-1 — Install Prometheus
+
 ```bash
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo update
 helm install prometheus prometheus-community/prometheus \
   --namespace opencost --create-namespace \
   -f 4-dashboard/k8s/opencost-prometheus-values.yaml
-kubectl get pods -n opencost -l app=prometheus
+kubectl rollout status deployment/prometheus-server -n opencost
 ```
 
-**Install OpenCost:**
+#### 7b-2 — Install OpenCost
+
 ```bash
 helm repo add opencost https://opencost.github.io/opencost-helm-chart
 helm repo update
@@ -1059,52 +1064,197 @@ helm install opencost opencost/opencost \
 kubectl rollout status deployment/opencost -n opencost
 ```
 
-**Verify:**
+Verify pods — all should be `Running`:
 ```bash
-# All pods should be Running
 kubectl get pods -n opencost
-
-# OpenCost health check (from inside cluster or via port-forward)
-kubectl port-forward svc/opencost 9090:9090 -n opencost
-curl http://localhost:9090/healthz
 ```
 
-Open `https://app.manmas.online` → sidebar → **☸️ OpenCost** — cost data appears within 5 minutes of Prometheus first scrape.
+K8s cost data (Namespaces, Workloads, Nodes, Savings tabs) appears within **5 minutes** of the first Prometheus scrape.
+
+---
+
+#### 7b-3 — Azure Integration (Rate Card pricing + ☁️ Cloud Costs)
+
+Run the automation script — it handles both parts and is fully idempotent:
+
+```bash
+chmod +x 1-infrastructure/scripts/setup-opencost-azure.sh
+./1-infrastructure/scripts/setup-opencost-azure.sh
+```
+
+**What it does:**
+
+| Part | What | Result |
+|---|---|---|
+| A — Rate Card | Creates `OpenCostRateCardRole` custom role + `opencost-ratecard-sp` Service Principal | K8s secret `azure-service-key` in `opencost` ns |
+| B — Cloud Costs | Creates storage account `finopsocexports`, daily Cost Management export, retrieves access key | K8s secret `cloud-costs` in `opencost` ns; `cloud-integration.json` written locally (gitignored) |
+
+Run Part A only: `./setup-opencost-azure.sh --part-a`
+Run Part B only: `./setup-opencost-azure.sh --part-b`
+
+> **Note:** Part B registers the `Microsoft.CostManagementExports` resource provider automatically if not already registered. This can take ~60 seconds.
+
+After the script finishes, update `AZURE_CLIENT_ID` in the helm values:
+
+```bash
+# Get your managed identity client ID
+az identity show --name mi-finops-prod \
+  --resource-group rg-finops-prod-core \
+  --query clientId -o tsv
+```
+
+Edit `4-dashboard/k8s/opencost-helm-values.yaml`:
+```yaml
+opencost:
+  exporter:
+    extraEnv:
+      AZURE_CLIENT_ID: "<paste-client-id-here>"
+```
+
+Then upgrade OpenCost to apply all secrets:
+```bash
+helm upgrade opencost opencost/opencost \
+  --namespace opencost \
+  -f 4-dashboard/k8s/opencost-helm-values.yaml
+kubectl rollout restart deployment/opencost -n opencost
+```
+
+Confirm Azure integration is active:
+```bash
+kubectl logs -n opencost -l app=opencost --tail=50 | grep -i "cloud costs"
+# Expected: Cloud Costs enabled: true
+```
+
+> **Cloud Costs tab data:** The first billing export run is triggered automatically by the script. Data appears in the ☁️ Cloud Costs tab within **15–30 minutes** of the first export completing.
+
+---
 
 <details>
 <summary><strong>Troubleshooting — Step 7b</strong></summary>
+
+**`Cloud Costs enabled: false` in OpenCost logs**
+
+`cloudCost.enabled` must be nested under `opencost:` in the helm values — not at the root level:
+```yaml
+# WRONG (root level — ignored by the chart)
+cloudCost:
+  enabled: true
+
+# CORRECT (under opencost:)
+opencost:
+  cloudCost:
+    enabled: true
+```
+Fix the values file and run `helm upgrade`.
+
+---
+
+**`json: cannot unmarshal number into Go struct field EnvVar...env.name`**
+
+`extraEnv` in the OpenCost helm chart is a **map**, not a list. Use:
+```yaml
+# CORRECT
+extraEnv:
+  AZURE_CLIENT_ID: "your-uuid"
+
+# WRONG
+extraEnv:
+  - name: AZURE_CLIENT_ID
+    value: "your-uuid"
+```
+If the deployment is already corrupted in the cluster, delete it first then reinstall:
+```bash
+kubectl delete deployment opencost -n opencost
+helm upgrade --install opencost opencost/opencost \
+  --namespace opencost \
+  -f 4-dashboard/k8s/opencost-helm-values.yaml
+```
+
+---
+
+**`volumeMounts[x].name: Not found` on helm upgrade**
+
+The OpenCost helm chart does not support `extraVolumes` — volume mounts added via `extraVolumeMounts` will have no matching volume. Remove `extraVolumeMounts` from the helm values entirely. Use `AZURE_CLIENT_ID` in `extraEnv` for Managed Identity auth (no file mount needed).
+
+---
+
+**`(400) RP Not Registered. Register destination storage account subscription with Microsoft.CostManagementExports`**
+
+The resource provider is not registered. The `setup-opencost-azure.sh` script registers it automatically (step B2.5). If running manually:
+```bash
+az provider register --namespace Microsoft.CostManagementExports
+# Wait ~60 s then retry
+az provider show --namespace Microsoft.CostManagementExports --query registrationState -o tsv
+```
+
+---
+
+**`Identity not found` / Rate Card URL has empty subscription ID (`subscriptions//providers`)**
+
+The managed identity client ID set in `AZURE_CLIENT_ID` is the control-plane identity, not accessible from pod IMDS. OpenCost automatically falls back to the **Azure Retail Prices API** (public, no auth) and successfully retrieves pricing. This is non-critical — pricing still works, just uses public rates rather than your negotiated Rate Card.
+
+To fix properly: add `AZURE_SUBSCRIPTION_ID` to `extraEnv` in helm values and set up Workload Identity for the `opencost` service account (federated credential linking `opencost/opencost` SA to `mi-finops-prod`).
+
+---
+
+**☁️ Cloud Costs tab shows setup instructions (data not appearing)**
+
+Check in order:
+1. Confirm `Cloud Costs enabled: true` in logs (see above)
+2. Check if billing export data has landed in storage:
+   ```bash
+   az storage blob list \
+     --account-name finopsocexports \
+     --container-name cost-exports \
+     --query "[].name" -o table
+   ```
+   If empty, wait 15–30 minutes for the first export run to complete.
+3. Check OpenCost logs for cloud cost ingestion errors:
+   ```bash
+   kubectl logs -n opencost -l app=opencost --tail=100 | \
+     grep -iE "cloud|integrat|storage|blob"
+   ```
+
+---
 
 **Pod `opencost` in CrashLoopBackOff**
 
 Check Prometheus is reachable:
 ```bash
-kubectl logs -n opencost deployment/opencost
-# Look for: "Prometheus unreachable" or "connection refused"
-kubectl get svc -n opencost
-```
-
-Ensure the `prometheus-server` service exists in the `opencost` namespace:
-```bash
+kubectl logs -n opencost deployment/opencost --tail=50
 kubectl get svc prometheus-server -n opencost
 ```
 
-**No cost data in dashboard (OpenCost Online but $0)**
+---
 
-Wait 5–10 minutes after install for Prometheus to collect initial scrape data.
-Check Prometheus targets:
+**No K8s cost data (OpenCost Online but $0)**
+
+Wait 5–10 minutes for Prometheus initial scrape. Check targets:
 ```bash
 kubectl port-forward svc/prometheus-server 9090:80 -n opencost
 # Open http://localhost:9090/targets — all targets should be UP
 ```
 
+---
+
 **`KeyError: 'total_cost'` on OpenCost page**
 
-Rebuild and push the dashboard image (fixed in `5_OpenCost.py`):
+Rebuild the dashboard image (fixed in `5_OpenCost.py`):
 ```bash
 az acr login --name finopsacrmanmas
 docker buildx build --platform linux/amd64 --push \
   -t finopsacrmanmas.azurecr.io/finops-dashboard:latest 4-dashboard/
 kubectl rollout restart deployment/finops-dashboard -n frontend
+```
+
+---
+
+**OpenCost API returning HTML instead of JSON**
+
+The dashboard is connecting to port 9090 (UI) instead of 9003 (cost-model API). Verify `OPENCOST_URL` in `4-dashboard/k8s/deployment.yaml`:
+```yaml
+- name: OPENCOST_URL
+  value: "http://opencost.opencost.svc.cluster.local:9003"   # API port — not 9090
 ```
 
 </details>
@@ -1283,7 +1433,7 @@ nslookup app.manmas.online
 | Advisor | 💡 | 7-tab intelligence centre: Priority Matrix, All Recs, Savings Leaderboard, By RG, Rightsizing, Advisor Score radar, 12-month ROI |
 | AI Chat | 🤖 | Context-aware Q&A; Explain the Bill prompts; Optimization tips — backed by live Platform API data |
 | Settings | ⚙️ | Manual sync, email alert testing, system health (admin only) |
-| OpenCost | ☸️ | K8s pod/namespace/node/label cost allocation integrated into `app.manmas.online`; 6 tabs: Overview, Namespaces, Workloads, Nodes, Labels/Chargeback, Savings |
+| OpenCost | ☸️ | K8s cost allocation + Azure cloud billing; 8 tabs: Overview, Namespaces, Workloads, Nodes, Storage, Labels/Chargeback, ☁️ Cloud Costs, Savings |
 
 ### Home Page — What Each Section Does
 

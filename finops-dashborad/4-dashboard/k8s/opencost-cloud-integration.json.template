@@ -1,0 +1,18 @@
+{
+  "azure": {
+    "storage": [
+      {
+        "subscriptionID": "<AZURE_SUBSCRIPTION_ID>",
+        "account":        "<STORAGE_ACCOUNT_NAME>",
+        "container":      "<COST_EXPORT_CONTAINER_NAME>",
+        "path":           "",
+        "cloud":          "public",
+        "authorizer": {
+          "accessKey":     "<STORAGE_ACCOUNT_ACCESS_KEY>",
+          "account":       "<STORAGE_ACCOUNT_NAME>",
+          "authorizerType": "AzureAccessKey"
+        }
+      }
+    ]
+  }
+}

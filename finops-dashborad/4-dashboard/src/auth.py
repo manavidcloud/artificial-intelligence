@@ -365,6 +365,7 @@ def _restore_session_from_token() -> bool:
         return False
     # Restore into session_state and refresh timestamp
     st.session_state["_user"] = entry["user"]
+    st.session_state["_sid"] = sid
     st.session_state["_last_activity"] = time.time()
     store[sid]["ts"] = time.time()
     return True
@@ -376,6 +377,7 @@ def _create_session(user: dict) -> None:
     sid = str(uuid.uuid4())
     store[sid] = {"user": user, "ts": time.time()}
     st.session_state["_user"] = user
+    st.session_state["_sid"] = sid
     st.session_state["_last_activity"] = time.time()
     st.query_params[_SID_PARAM] = sid
 
@@ -383,10 +385,13 @@ def _create_session(user: dict) -> None:
 def _destroy_session() -> None:
     """Clear server-side session and URL token."""
     store = _session_store()
-    sid = st.query_params.get(_SID_PARAM)
-    if sid:
-        store.pop(sid, None)
-    st.query_params.pop(_SID_PARAM, None)
+    sid = st.session_state.get("_sid") or st.query_params.get(_SID_PARAM)
+    if sid and sid in store:
+        del store[sid]
+    try:
+        del st.query_params[_SID_PARAM]
+    except KeyError:
+        pass
     st.session_state.clear()
 
 
@@ -400,6 +405,11 @@ def require_auth() -> None:
             st.warning("Your session expired after 10 minutes of inactivity. Please sign in again.")
         else:
             st.session_state["_last_activity"] = time.time()
+            # Re-assert ?sid= in URL — Streamlit page navigation drops query params,
+            # so the token must be restored on every page so refresh always works.
+            sid = st.session_state.get("_sid")
+            if sid and st.query_params.get(_SID_PARAM) != sid:
+                st.query_params[_SID_PARAM] = sid
             return
 
     # Slow path: browser was refreshed — restore from URL token

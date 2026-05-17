@@ -13,8 +13,12 @@ import streamlit as st
 from auth import require_auth, sidebar_user
 from utils.theme import apply_theme, apply_plotly_theme, COLORS, PLOTLY_CONFIG
 from utils.opencost_api import (
-    is_online, allocation, node_assets, request_sizing, cluster_sizing,
-    flatten_allocation,
+    is_online, allocation, node_assets, pv_assets,
+    request_sizing, cluster_sizing,
+    abandoned_workloads, unclaimed_volumes, underutilized_nodes,
+    cloud_costs, cloud_costs_enabled,
+    custom_cost_total,
+    flatten_allocation, flatten_pv_assets,
 )
 
 st.set_page_config(
@@ -56,15 +60,25 @@ with st.sidebar:
         format_func=lambda w: _WINDOW_LABELS.get(w, w),
     )
     aggregate_wl = st.radio(
-        "Workload aggregate", ["deployment", "pod", "controller"], index=0
+        "Workload aggregate",
+        ["deployment", "pod", "controller", "service", "container"],
+        index=0,
+        help="'service' = cost by K8s Service  |  'container' = most granular view",
+    )
+    chargeback_mode = st.radio(
+        "Chargeback by", ["Label", "Annotation"], index=0,
+        help="Label = pod labels  |  Annotation = pod annotations",
+        horizontal=True,
     )
     label_key = st.selectbox(
-        "Label (chargeback)", _COMMON_LABELS, index=0,
-        help="Label key used for cost allocation in the Labels tab.",
+        f"{'Label' if chargeback_mode == 'Label' else 'Annotation'} key",
+        _COMMON_LABELS, index=0,
+        help="Key used for cost allocation in the Labels tab.",
     )
-    custom_lbl = st.text_input("Custom label key", placeholder="e.g. cost-center")
+    custom_lbl = st.text_input("Custom key", placeholder="e.g. cost-center")
     if custom_lbl.strip():
         label_key = custom_lbl.strip()
+    _aggregate_prefix = "label" if chargeback_mode == "Label" else "annotation"
 
     st.markdown("---")
     _online = is_online()
@@ -99,9 +113,17 @@ with st.spinner("Loading Kubernetes cost data…"):
     ns_raw  = allocation(window=window, aggregate="namespace",   accumulate=True)
     wl_raw  = allocation(window=window, aggregate=aggregate_wl,  accumulate=True)
     nd_raw  = node_assets(window=window)
-    lbl_raw = allocation(window=window, aggregate=f"label:{label_key}", accumulate=True)
-    req_recs  = request_sizing()
-    clus_recs = cluster_sizing()
+    pv_raw  = pv_assets(window=window)
+    lbl_raw = allocation(window=window, aggregate=f"{_aggregate_prefix}:{label_key}", accumulate=True)
+    req_recs    = request_sizing()
+    clus_recs   = cluster_sizing()
+    aband_recs  = abandoned_workloads()
+    unclaimed_v = unclaimed_volumes()
+    underutil_n = underutilized_nodes()
+    _cc_on      = cloud_costs_enabled()
+    cc_raw      = cloud_costs(window=window, aggregate="service", accumulate="day") if _cc_on else []
+    cc_cat_raw  = cloud_costs(window=window, aggregate="category", accumulate="all") if _cc_on else []
+    cust_raw    = custom_cost_total(window=window)
     # Daily trend (non-accumulated, step=1d)
     trend_raw = allocation(window=window, aggregate="namespace", accumulate=False, step="1d")
 
@@ -133,6 +155,11 @@ for bucket in (nd_raw or []):
         })
 df_nd = pd.DataFrame(nd_parsed) if nd_parsed else pd.DataFrame()
 
+# PV assets
+pv_rows = flatten_pv_assets(pv_raw)
+df_pv   = pd.DataFrame(pv_rows) if pv_rows else pd.DataFrame()
+total_storage_cost = df_pv["total_cost"].sum() if not df_pv.empty else 0.0
+
 # Derived totals
 df_ns_active = df_ns[df_ns["name"] != "__idle__"] if not df_ns.empty else pd.DataFrame()
 total_k8s  = df_ns["total_cost"].sum() if not df_ns.empty else 0.0
@@ -143,13 +170,14 @@ avg_eff    = df_ns_active["efficiency"].mean() if not df_ns_active.empty else 0.
 # ─────────────────────────────────────────────────────────────────────────────
 # KPI strip
 # ─────────────────────────────────────────────────────────────────────────────
-c1, c2, c3, c4, c5 = st.columns(5)
+c1, c2, c3, c4, c5, c6 = st.columns(6)
 c1.metric("K8s Total Spend",   f"${total_k8s:,.2f}")
 c2.metric("Namespaces",        len(df_ns_active))
 c3.metric("Nodes",             len(df_nd))
-c4.metric("Idle Cost",         f"${idle_cost:,.2f}",
+c4.metric("Storage (PV)",      f"${total_storage_cost:,.2f}")
+c5.metric("Idle Cost",         f"${idle_cost:,.2f}",
           f"{idle_pct:.1f}% waste", delta_color="inverse")
-c5.metric("Avg Efficiency",    f"{avg_eff:.1f}%")
+c6.metric("Avg Efficiency",    f"{avg_eff:.1f}%")
 
 st.divider()
 
@@ -157,12 +185,14 @@ st.divider()
 # Tabs
 # ─────────────────────────────────────────────────────────────────────────────
 (tab_overview, tab_namespaces, tab_workloads,
- tab_nodes, tab_labels, tab_savings) = st.tabs([
+ tab_nodes, tab_storage, tab_labels, tab_cloud, tab_savings) = st.tabs([
     "🏠 Overview",
     "📦 Namespaces",
     "🚀 Workloads",
     "🖥️ Nodes",
+    "💾 Storage",
     "🏷️ Labels / Chargeback",
+    "☁️ Cloud Costs",
     "💡 Savings",
 ])
 
@@ -490,11 +520,103 @@ with tab_nodes:
                 st.success(f"**{idle_pct:.0f}% idle** — healthy utilization.")
 
 # ══════════════════════════════════════════════════════════════════════════════
-# TAB 5 — LABELS / CHARGEBACK
+# TAB 5 — STORAGE (PV / PVC)
+# ══════════════════════════════════════════════════════════════════════════════
+with tab_storage:
+    st.subheader("💾 Persistent Volume Costs")
+    st.caption("Cost breakdown per PersistentVolume. PVC cost per namespace is included in the Namespaces tab.")
+
+    st_t1, st_t2, st_t3 = st.tabs(["📊 By Volume", "📦 By Namespace", "⚠️ Unclaimed Volumes"])
+
+    with st_t1:
+        if not df_pv.empty and "total_cost" in df_pv.columns:
+            df_pv_s = df_pv.sort_values("total_cost", ascending=False).reset_index(drop=True)
+            fig = go.Figure(go.Bar(
+                x=df_pv_s["total_cost"], y=df_pv_s["pv"], orientation="h",
+                marker=dict(color=df_pv_s["total_cost"],
+                            colorscale=[[0, COLORS["blue2"]], [1, COLORS["blue"]]],
+                            showscale=False),
+                text=[f"${v:,.2f}  ({g:.1f} GB)" for v, g in
+                      zip(df_pv_s["total_cost"], df_pv_s["gb"])],
+                textposition="outside",
+                hovertemplate="<b>%{y}</b><br>Cost: $%{x:,.2f}<extra></extra>",
+            ))
+            apply_plotly_theme(fig)
+            fig.update_layout(
+                height=max(300, len(df_pv_s) * 32),
+                yaxis=dict(autorange="reversed"),
+                xaxis_title="Cost (USD)", yaxis_title=None, showlegend=False,
+            )
+            st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG)
+
+            df_pv_disp = df_pv_s.copy()
+            df_pv_disp["total_cost"] = df_pv_disp["total_cost"].map(lambda x: f"${x:,.2f}")
+            df_pv_disp["gb"] = df_pv_disp["gb"].map(lambda x: f"{x:.1f} GB")
+            df_pv_disp.rename(columns={
+                "pv": "Volume", "total_cost": "Cost", "gb": "Size",
+                "namespace": "Namespace", "claim": "PVC Claim", "storage_class": "Storage Class",
+            }, inplace=True)
+            st.dataframe(df_pv_disp, use_container_width=True, height=340)
+        else:
+            st.info("No PV cost data. PV assets require at least one PersistentVolume in the cluster.")
+
+    with st_t2:
+        if not df_pv.empty and "namespace" in df_pv.columns:
+            ns_pv = (
+                df_pv.groupby("namespace", as_index=False)["total_cost"]
+                .sum()
+                .sort_values("total_cost", ascending=False)
+            )
+            fig2 = go.Figure(go.Pie(
+                labels=ns_pv["namespace"].replace("", "(cluster-level)"),
+                values=ns_pv["total_cost"],
+                hole=0.55,
+                marker=dict(colors=PALETTE[:len(ns_pv)]),
+                hovertemplate="%{label}<br><b>$%{value:,.2f}</b> (%{percent})<extra></extra>",
+            ))
+            apply_plotly_theme(fig2)
+            fig2.update_layout(
+                height=380,
+                annotations=[dict(text=f"${total_storage_cost:,.0f}",
+                                  x=0.5, y=0.5, font_size=15,
+                                  font_color=COLORS["text"], showarrow=False)],
+            )
+            st.plotly_chart(fig2, use_container_width=True, config=PLOTLY_CONFIG)
+        else:
+            st.info("No namespace breakdown available.")
+
+    with st_t3:
+        if unclaimed_v:
+            df_unc = pd.DataFrame([
+                {
+                    "volume":         r.get("volumeName", r.get("name", "")),
+                    "storage_class":  r.get("storageClass", ""),
+                    "gb":             round((r.get("size", 0) or 0) / (1024 ** 3), 1),
+                    "monthly_cost":   r.get("monthlyCost", 0.0) or 0.0,
+                }
+                for r in unclaimed_v if isinstance(r, dict)
+            ])
+            if not df_unc.empty:
+                total_unc = df_unc["monthly_cost"].sum()
+                st.error(f"**{len(df_unc)} unclaimed PVs** — wasting **${total_unc:,.2f}/mo**")
+                df_unc["monthly_cost"] = df_unc["monthly_cost"].map(lambda x: f"${x:,.2f}")
+                df_unc["gb"] = df_unc["gb"].map(lambda x: f"{x:.1f} GB")
+                df_unc.columns = ["Volume", "Storage Class", "Size", "Monthly Cost"]
+                st.dataframe(df_unc, use_container_width=True, height=300)
+            else:
+                st.success("No unclaimed PersistentVolumes found.")
+        else:
+            st.success("No unclaimed PersistentVolumes found.")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TAB 6 — LABELS / CHARGEBACK
 # ══════════════════════════════════════════════════════════════════════════════
 with tab_labels:
-    st.subheader(f"Cost by label: `{label_key}`")
-    st.caption("Change the label key in the sidebar. Use for team chargeback / showback reporting.")
+    st.subheader(f"Cost by {chargeback_mode.lower()}: `{label_key}`")
+    st.caption(
+        f"Chargeback mode: **{chargeback_mode}**  |  Key: `{label_key}`  |  "
+        "Switch between Label / Annotation and change the key in the sidebar."
+    )
 
     df_lbl_tab = df_lbl[df_lbl["name"] != "__idle__"].copy() if not df_lbl.empty else pd.DataFrame()
     if not df_lbl_tab.empty and "total_cost" in df_lbl_tab.columns:
@@ -571,10 +693,150 @@ with tab_labels:
             st.dataframe(df_cb_final, use_container_width=True, height=360)
 
 # ══════════════════════════════════════════════════════════════════════════════
-# TAB 6 — SAVINGS
+# TAB 7 — CLOUD COSTS  (/cloudCost + /customCost)
+# ══════════════════════════════════════════════════════════════════════════════
+with tab_cloud:
+    st.subheader("☁️ Cloud Provider Costs")
+    st.caption(
+        "Cost data sourced from your cloud billing export via OpenCost. "
+        "Requires `cloudCost.enabled=true` in OpenCost Helm values and a billing export configured."
+    )
+
+    if not _cc_on:
+        st.info(
+            "**Cloud Costs not yet configured.**\n\n"
+            "To enable, set `cloudCost.enabled: true` in `4-dashboard/k8s/opencost-helm-values.yaml` "
+            "and configure an Azure billing export. "
+            "Once enabled, this tab will show cost by provider, category, and service."
+        )
+        st.markdown("""
+**Enable Azure Cloud Costs in OpenCost:**
+```yaml
+# 4-dashboard/k8s/opencost-helm-values.yaml
+cloudCost:
+  enabled: true
+  # Azure requires a billing export to a Storage Account
+  # See: https://opencost.io/docs/configuration/azure
+```
+```bash
+helm upgrade opencost opencost/opencost \\
+  --namespace opencost \\
+  -f 4-dashboard/k8s/opencost-helm-values.yaml
+```
+""")
+    else:
+        cc_t1, cc_t2, cc_t3 = st.tabs(["📊 By Service", "🗂️ By Category", "📈 Daily Trend"])
+
+        with cc_t1:
+            svc_rows = []
+            for bucket in (cc_raw or []):
+                if not isinstance(bucket, dict):
+                    continue
+                for svc, props in bucket.items():
+                    if not isinstance(props, dict):
+                        continue
+                    svc_rows.append({
+                        "service":    svc,
+                        "cost":       props.get("cost", props.get("totalCost", 0.0)) or 0.0,
+                        "provider":   props.get("provider", ""),
+                    })
+            df_cc_svc = pd.DataFrame(svc_rows) if svc_rows else pd.DataFrame()
+            if not df_cc_svc.empty and "cost" in df_cc_svc.columns:
+                df_cc_svc = df_cc_svc.groupby("service", as_index=False)["cost"].sum()
+                df_cc_svc = df_cc_svc.sort_values("cost", ascending=False).reset_index(drop=True)
+                fig = go.Figure(go.Bar(
+                    x=df_cc_svc["cost"], y=df_cc_svc["service"], orientation="h",
+                    marker=dict(color=df_cc_svc["cost"],
+                                colorscale=[[0, COLORS["blue2"]], [1, COLORS["blue"]]],
+                                showscale=False),
+                    text=[f"${v:,.2f}" for v in df_cc_svc["cost"]],
+                    textposition="outside",
+                    hovertemplate="%{y}<br><b>$%{x:,.2f}</b><extra></extra>",
+                ))
+                apply_plotly_theme(fig)
+                fig.update_layout(
+                    height=max(300, len(df_cc_svc) * 28),
+                    yaxis=dict(autorange="reversed"),
+                    xaxis_title="Cost (USD)", showlegend=False,
+                )
+                st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG)
+            else:
+                st.info("No cloud service cost data available.")
+
+        with cc_t2:
+            cat_rows = []
+            for bucket in (cc_cat_raw or []):
+                if not isinstance(bucket, dict):
+                    continue
+                for cat, props in bucket.items():
+                    if not isinstance(props, dict):
+                        continue
+                    cat_rows.append({
+                        "category": cat,
+                        "cost":     props.get("cost", props.get("totalCost", 0.0)) or 0.0,
+                    })
+            df_cat = pd.DataFrame(cat_rows) if cat_rows else pd.DataFrame()
+            if not df_cat.empty and "cost" in df_cat.columns:
+                df_cat = df_cat.groupby("category", as_index=False)["cost"].sum()
+                total_cc = df_cat["cost"].sum()
+                fig2 = go.Figure(go.Pie(
+                    labels=df_cat["category"], values=df_cat["cost"],
+                    hole=0.55, marker=dict(colors=PALETTE[:len(df_cat)]),
+                    hovertemplate="%{label}<br><b>$%{value:,.2f}</b> (%{percent})<extra></extra>",
+                ))
+                apply_plotly_theme(fig2)
+                fig2.update_layout(
+                    height=360,
+                    annotations=[dict(text=f"${total_cc:,.0f}", x=0.5, y=0.5,
+                                      font_size=14, font_color=COLORS["text"], showarrow=False)],
+                )
+                st.plotly_chart(fig2, use_container_width=True, config=PLOTLY_CONFIG)
+            else:
+                st.info("No cloud category cost data available.")
+
+        with cc_t3:
+            st.info("Daily trend view requires cloud cost data to accumulate over several days.")
+
+    # Custom / External Costs
+    st.divider()
+    st.subheader("🔌 External / Custom Costs")
+    st.caption("Third-party services billed outside Kubernetes (e.g. Datadog, Snowflake, SaaS tools).")
+    if cust_raw:
+        cust_rows = []
+        for bucket in cust_raw:
+            if not isinstance(bucket, dict):
+                continue
+            for name, props in bucket.items():
+                if not isinstance(props, dict):
+                    continue
+                cust_rows.append({
+                    "service": name,
+                    "cost":    props.get("cost", props.get("totalCost", 0.0)) or 0.0,
+                })
+        df_cust = pd.DataFrame(cust_rows) if cust_rows else pd.DataFrame()
+        if not df_cust.empty and "cost" in df_cust.columns:
+            df_cust = df_cust.sort_values("cost", ascending=False).reset_index(drop=True)
+            df_cust["cost"] = df_cust["cost"].map(lambda v: f"${v:,.2f}")
+            df_cust.columns = ["External Service", "Cost"]
+            st.dataframe(df_cust, use_container_width=True, height=280)
+        else:
+            st.info("No external cost data found.")
+    else:
+        st.info("No custom costs configured. Add external services via OpenCost custom costs API.")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TAB 8 — SAVINGS
 # ══════════════════════════════════════════════════════════════════════════════
 with tab_savings:
     cpu_target = st.slider("CPU efficiency target %", 40, 90, 65, key="sav_cpu")
+
+    sav_t1, sav_t2, sav_t3, sav_t4, sav_t5 = st.tabs([
+        "🔧 Request Rightsizing",
+        "🖥️ Cluster Sizing",
+        "🎯 Priority Matrix",
+        "🚫 Abandoned Workloads",
+        "📉 Underutilized Nodes",
+    ])
 
     # Estimate from allocation if API recs not available
     df_over = pd.DataFrame()
@@ -601,7 +863,7 @@ with tab_savings:
     c3.metric("Total Addressable",   f"${total_savings:,.2f}/mo")
     c4.metric("Over-provisioned", len(df_over) if not df_over.empty else 0)
 
-    sav_t1, sav_t2, sav_t3 = st.tabs(["🔧 Request Rightsizing", "🖥️ Cluster", "🎯 Priority Matrix"])
+    # tabs declared above at savings section start
 
     with sav_t1:
         if req_recs:
@@ -715,3 +977,97 @@ az aks nodepool scale --name apppool \\
             st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG)
         else:
             st.info("Allocation data not available for priority matrix.")
+
+    # ── TAB Savings 4 — ABANDONED WORKLOADS ──────────────────────────────────
+    with sav_t4:
+        st.subheader("🚫 Abandoned Workloads")
+        st.caption("Deployments / StatefulSets with 0 CPU + RAM usage — safe candidates for deletion.")
+        if aband_recs:
+            df_ab = pd.DataFrame([
+                {
+                    "namespace":  r.get("namespace", ""),
+                    "workload":   r.get("controllerName", r.get("name", "")),
+                    "kind":       r.get("controllerKind", ""),
+                    "monthly_cost": r.get("monthlyCost", 0.0) or 0.0,
+                }
+                for r in aband_recs if isinstance(r, dict)
+            ])
+            if not df_ab.empty:
+                if "monthly_cost" in df_ab.columns:
+                    df_ab = df_ab.sort_values("monthly_cost", ascending=False).reset_index(drop=True)
+                total_ab = df_ab["monthly_cost"].sum() if "monthly_cost" in df_ab.columns else 0.0
+                st.error(f"**{len(df_ab)} abandoned workloads** — wasting **${total_ab:,.2f}/mo**")
+
+                fig = go.Figure(go.Bar(
+                    y=df_ab["workload"].head(20),
+                    x=df_ab["monthly_cost"].head(20),
+                    orientation="h", marker_color=COLORS["red"],
+                    hovertemplate="%{y}<br>Wasted: <b>$%{x:,.2f}/mo</b><extra></extra>",
+                ))
+                apply_plotly_theme(fig)
+                fig.update_layout(
+                    height=max(280, min(len(df_ab), 20) * 28),
+                    yaxis=dict(autorange="reversed"),
+                    xaxis_title="Monthly Cost Wasted", showlegend=False,
+                )
+                st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG)
+                df_ab["monthly_cost"] = df_ab["monthly_cost"].map(lambda x: f"${x:,.2f}")
+                df_ab.columns = ["Namespace", "Workload", "Kind", "Monthly Cost"]
+                st.dataframe(df_ab, use_container_width=True, height=300)
+            else:
+                st.success("No abandoned workloads detected.")
+        else:
+            st.success("No abandoned workloads detected.")
+
+    # ── TAB Savings 5 — UNDERUTILIZED NODES ──────────────────────────────────
+    with sav_t5:
+        st.subheader("📉 Underutilized Nodes")
+        st.caption("Nodes running significantly below their allocated capacity.")
+        if underutil_n:
+            df_un = pd.DataFrame([
+                {
+                    "node":            r.get("nodeName", r.get("name", "")),
+                    "cpu_util_pct":    round((r.get("cpuUtilization", 0) or 0) * 100, 1),
+                    "ram_util_pct":    round((r.get("ramUtilization", 0) or 0) * 100, 1),
+                    "monthly_savings": r.get("monthlySavings", 0.0) or 0.0,
+                }
+                for r in underutil_n if isinstance(r, dict)
+            ])
+            if not df_un.empty:
+                if "monthly_savings" in df_un.columns:
+                    df_un = df_un.sort_values("monthly_savings", ascending=False).reset_index(drop=True)
+                total_un = df_un["monthly_savings"].sum() if "monthly_savings" in df_un.columns else 0.0
+                st.warning(f"**{len(df_un)} underutilized nodes** — potential savings: **${total_un:,.2f}/mo**")
+
+                col_bar, col_tbl = st.columns([2, 1])
+                with col_bar:
+                    fig = go.Figure()
+                    fig.add_trace(go.Bar(
+                        name="CPU Util %", y=df_un["node"], x=df_un["cpu_util_pct"],
+                        orientation="h", marker_color=COLORS["blue"],
+                    ))
+                    fig.add_trace(go.Bar(
+                        name="RAM Util %", y=df_un["node"], x=df_un["ram_util_pct"],
+                        orientation="h", marker_color=COLORS["teal"],
+                    ))
+                    apply_plotly_theme(fig)
+                    fig.update_layout(
+                        barmode="group", height=max(280, len(df_un) * 36),
+                        yaxis=dict(autorange="reversed"),
+                        xaxis=dict(title="Utilization %", range=[0, 110]),
+                        legend=dict(orientation="h", yanchor="bottom", y=1.02),
+                    )
+                    fig.add_vline(x=50, line_dash="dash", line_color=COLORS["slate"], opacity=0.5)
+                    st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG)
+
+                with col_tbl:
+                    df_un_disp = df_un.copy()
+                    df_un_disp["monthly_savings"] = df_un_disp["monthly_savings"].map(lambda x: f"${x:,.2f}")
+                    df_un_disp["cpu_util_pct"]    = df_un_disp["cpu_util_pct"].map(lambda x: f"{x:.1f}%")
+                    df_un_disp["ram_util_pct"]    = df_un_disp["ram_util_pct"].map(lambda x: f"{x:.1f}%")
+                    df_un_disp.columns = ["Node", "CPU Util", "RAM Util", "Savings/mo"]
+                    st.dataframe(df_un_disp, use_container_width=True, height=320)
+            else:
+                st.success("All nodes are well-utilized.")
+        else:
+            st.success("All nodes are well-utilized.")

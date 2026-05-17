@@ -15,3 +15,7 @@ node_modules/
 
 # User credentials — never commit (use users.yaml.template)
 4-dashboard/src/users.yaml
+
+# OpenCost secrets — never commit (use *.template versions as reference)
+4-dashboard/k8s/opencost-service-key.json
+4-dashboard/k8s/opencost-cloud-integration.json
