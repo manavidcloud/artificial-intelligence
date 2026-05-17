@@ -1,0 +1,38 @@
+# OpenCost — Azure AKS cost allocation
+# helm install opencost opencost/opencost \
+#   --namespace opencost --create-namespace \
+#   -f 4-dashboard/k8s/opencost-helm-values.yaml
+
+opencost:
+  exporter:
+    defaultClusterId: "finops-aks"
+    cloudProviderApiKey: ""
+  prometheus:
+    internal:
+      enabled: true
+      serviceName: prometheus-server
+      namespaceName: opencost
+      port: 80
+  # cost-model API: port 9003 | UI: port 9090
+  # OPENCOST_URL in dashboard must point to 9003
+  ui:
+    enabled: true
+  metrics:
+    serviceMonitor:
+      enabled: false
+
+cloudCost:
+  enabled: false
+
+# Azure pricing — no key needed (uses public Azure pricing API)
+# For AWS/GCP: set cloudProviderApiKey to your billing API key
+azure:
+  cloud: public
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

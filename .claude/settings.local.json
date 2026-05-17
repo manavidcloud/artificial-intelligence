@@ -6,7 +6,13 @@
       "Bash(az aks *)",
       "Bash(python3 -c ' *)",
       "Bash(python -c ' *)",
-      "Bash(dir \"c:/Program Files/Git/artificial-intelligence/finops-dashborad/\")"
+      "Bash(dir \"c:/Program Files/Git/artificial-intelligence/finops-dashborad/\")",
+      "Bash(Get-ChildItem -Path \"c:\\\\Program Files\\\\Git\\\\artificial-intelligence\\\\finops-dashborad\\\\5-opencost\" -Recurse -File)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "PowerShell(ls \"c:\\\\Program Files\\\\Git\\\\artificial-intelligence\\\\finops-dashborad\\\\\")",
+      "PowerShell(ls \"c:\\\\Program Files\\\\Git\\\\artificial-intelligence\\\\finops-dashborad\\\\4-dashboard\\\\src\\\\pages\\\\\")",
+      "PowerShell(ls \"c:\\\\Program Files\\\\Git\\\\artificial-intelligence\\\\finops-dashborad\\\\4-dashboard\\\\k8s\\\\\")",
+      "PowerShell(ls \"c:\\\\Program Files\\\\Git\\\\artificial-intelligence\\\\finops-dashborad\\\\k8s\\\\\")"
     ]
   }
 }

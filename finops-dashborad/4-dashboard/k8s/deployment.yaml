@@ -52,6 +52,8 @@ spec:
                   key: PLATFORM_AI_URL
             - name: AUTH_MODE
               value: "local"
+            - name: OPENCOST_URL
+              value: "http://opencost.opencost.svc.cluster.local:9003"
           livenessProbe:
             httpGet:
               path: /_stcore/health

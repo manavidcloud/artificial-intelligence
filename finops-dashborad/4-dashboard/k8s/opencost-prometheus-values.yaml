@@ -1,0 +1,28 @@
+# Prometheus — minimal install for OpenCost (AKS)
+# helm install prometheus prometheus-community/prometheus \
+#   --namespace opencost --create-namespace \
+#   -f 4-dashboard/k8s/opencost-prometheus-values.yaml
+
+alertmanager:
+  enabled: false
+
+pushgateway:
+  enabled: false
+
+server:
+  persistentVolume:
+    size: 8Gi
+  retention: 15d
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+
+nodeExporter:
+  enabled: true
+
+kube-state-metrics:
+  enabled: true

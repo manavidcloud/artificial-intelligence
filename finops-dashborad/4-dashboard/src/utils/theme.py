@@ -165,6 +165,8 @@ COLORS = {
     "red":    "#f87171",
     "teal":   "#38bdf8",
     "pink":   "#f472b6",
+    "text":   "#E2E8F0",
+    "slate":  "#64748B",
 }
 
 # Plotly modebar config — keep zoom/pan/save-PNG, remove clutter

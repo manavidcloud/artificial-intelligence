@@ -14,6 +14,7 @@ Adding a new auth backend:
 
 import os
 import time
+import uuid
 import logging
 from pathlib import Path
 
@@ -27,6 +28,14 @@ AUTH_MODE = os.getenv("AUTH_MODE", "local").lower().strip()
 SESSION_TIMEOUT_SECS = 10 * 60  # 10 minutes idle → auto sign-out
 
 _USERS_FILE = Path(__file__).parent / "users.yaml"
+
+_SID_PARAM = "sid"
+
+
+@st.cache_resource
+def _session_store() -> dict:
+    """Server-side session store — survives page refreshes and navigation."""
+    return {}
 
 # ---------------------------------------------------------------------------
 # CSS
@@ -343,18 +352,59 @@ def _verify(username: str, password: str) -> dict | None:
 # Public API
 # ---------------------------------------------------------------------------
 
+def _restore_session_from_token() -> bool:
+    """Try to restore session from URL token. Returns True if session is valid."""
+    store = _session_store()
+    sid = st.query_params.get(_SID_PARAM)
+    if not sid or sid not in store:
+        return False
+    entry = store[sid]
+    if time.time() - entry["ts"] > SESSION_TIMEOUT_SECS:
+        store.pop(sid, None)
+        st.query_params.pop(_SID_PARAM, None)
+        return False
+    # Restore into session_state and refresh timestamp
+    st.session_state["_user"] = entry["user"]
+    st.session_state["_last_activity"] = time.time()
+    store[sid]["ts"] = time.time()
+    return True
+
+
+def _create_session(user: dict) -> None:
+    """Persist session server-side and write token to URL."""
+    store = _session_store()
+    sid = str(uuid.uuid4())
+    store[sid] = {"user": user, "ts": time.time()}
+    st.session_state["_user"] = user
+    st.session_state["_last_activity"] = time.time()
+    st.query_params[_SID_PARAM] = sid
+
+
+def _destroy_session() -> None:
+    """Clear server-side session and URL token."""
+    store = _session_store()
+    sid = st.query_params.get(_SID_PARAM)
+    if sid:
+        store.pop(sid, None)
+    st.query_params.pop(_SID_PARAM, None)
+    st.session_state.clear()
+
+
 def require_auth() -> None:
     """Show login wall if the user is not authenticated. Calls st.stop() on failure."""
+    # Fast path: same WebSocket session, user already in memory
     if st.session_state.get("_user"):
-        # Auto sign-out after SESSION_TIMEOUT_SECS of inactivity
         last = st.session_state.get("_last_activity", time.time())
         if time.time() - last > SESSION_TIMEOUT_SECS:
-            st.session_state.clear()
+            _destroy_session()
             st.warning("Your session expired after 10 minutes of inactivity. Please sign in again.")
-            # fall through to show the login form
         else:
             st.session_state["_last_activity"] = time.time()
             return
+
+    # Slow path: browser was refreshed — restore from URL token
+    if _restore_session_from_token():
+        return
 
     st.markdown(LOGIN_CSS, unsafe_allow_html=True)
 
@@ -384,7 +434,7 @@ def require_auth() -> None:
                 st.stop()
 
             if user:
-                st.session_state["_user"] = {"username": username.strip(), **user}
+                _create_session({"username": username.strip(), **user})
                 st.rerun()
             else:
                 st.error("Invalid credentials. Please try again.")
@@ -463,7 +513,7 @@ def sidebar_user() -> None:
         unsafe_allow_html=True,
     )
     if st.sidebar.button("Logout", use_container_width=True, key="_logout_btn"):
-        st.session_state.clear()
+        _destroy_session()
         st.rerun()
 
     st.sidebar.markdown("---")

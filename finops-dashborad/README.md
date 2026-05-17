@@ -23,6 +23,7 @@
    - [Step 5 — Build & Push Docker Images](#step-5--build--push-docker-images)
    - [Step 6 — Deploy to AKS](#step-6--deploy-to-aks)
    - [Step 7 — Expose via Ingress](#step-7--expose-via-ingress)
+   - [Step 7b — Install OpenCost + Prometheus](#step-7b--install-opencost--prometheus-k8s-cost-allocation)
    - [Step 8 — First Login & Initial Sync](#step-8--first-login--initial-sync)
    - [Step 9 — Sanity Check](#step-9--sanity-check)
 7. [Dashboard Pages & Features](#dashboard-pages--features)
@@ -56,16 +57,16 @@ User → Streamlit Dashboard → Platform API → PostgreSQL
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │                             Internet / Users                                 │
 └───────────────┬──────────────────────────────────────────────────────────────┘
-                │  HTTPS  app / api / ai / opencost.manmas.online
+                │  HTTPS  app.manmas.online / api.manmas.online / ai.manmas.online
                 ▼
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │                       AKS NGINX Ingress Controller                           │
 │                    (TLS termination via cert-manager / Let's Encrypt)        │
 └──┬─────────────────┬──────────────────┬──────────────────┬───────────────────┘
-   │ frontend ns      │ platform ns       │ ai ns             │ opencost ns (opt.)
+   │ frontend ns      │ platform ns       │ ai ns             │ opencost ns
    ▼                  ▼                   ▼                   ▼
 ┌──────────────┐  ┌──────────────────┐  ┌─────────────┐  ┌──────────────────┐
-│ 4-Dashboard  │  │ 2-Platform API   │  │ 3-AI Agent  │  │ 5-OpenCost (opt) │
+│ 4-Dashboard  │  │ 2-Platform API   │  │ 3-AI Agent  │  │ 5-OpenCost       │
 │ (Streamlit)  │─▶│ (FastAPI)        │◀─│ (LangGraph) │  │ K8s cost alloc   │
 │ port 8501    │  │ port 8080        │  │ port 8000   │  │ port 9090        │
 └──────────────┘  └────────┬─────────┘  └─────────────┘  └────────┬─────────┘
@@ -106,7 +107,7 @@ Cloud Provider Extensibility (Platform API):
   CLOUD_PROVIDER=aws    →  providers/aws.py      🔲 stub ready (boto3)
   CLOUD_PROVIDER=gcp    →  providers/gcp.py      🔲 stub ready (google-cloud-billing)
 
-OpenCost Multi-Cloud (optional — see 5-opencost/README.md):
+OpenCost Multi-Cloud (Helm values: 4-dashboard/k8s/opencost-helm-values.yaml):
   Azure AKS   →  native (this repo)
   AWS EKS     →  set cloudProvider: aws + AWS pricing secret
   GCP GKE     →  set cloudProvider: gcp + GCP pricing secret
@@ -186,7 +187,9 @@ finops-dashborad/
 │   ├── requirements.txt
 │   ├── TROUBLESHOOTING.md
 │   ├── k8s/
-│   │   └── deployment.yaml          # Namespace, Deployment, Service
+│   │   ├── deployment.yaml                   # Namespace, Deployment, Service + OPENCOST_URL
+│   │   ├── opencost-prometheus-values.yaml   # Prometheus Helm values (AKS scrape config)
+│   │   └── opencost-helm-values.yaml         # OpenCost Helm values (Azure pricing)
 │   └── src/
 │       ├── Home.py                  # Overview: KPIs, daily trend, top services
 │       ├── auth.py                  # Login wall — local/oauth/ldap (AUTH_MODE)
@@ -198,18 +201,13 @@ finops-dashborad/
 │       │   ├── 2_Resources.py       # Resource inventory + type drill-down
 │       │   ├── 3_Advisor.py         # 7-tab Advisor intelligence centre
 │       │   ├── 4_AI_Chat.py         # AI assistant chat interface
-│       │   └── 5_Settings.py        # Admin: manual sync, email tests, health
+│       │   ├── 5_OpenCost.py        # K8s cost allocation (OpenCost + Prometheus)
+│       │   └── 6_Settings.py        # Admin: manual sync, email tests, health
 │       └── utils/
 │           ├── api.py               # HTTP client for Platform API + AI Agent
 │           ├── currency.py          # Currency conversion + formatting helpers
+│           ├── opencost_api.py      # OpenCost REST client (allocation, assets, sizing)
 │           └── theme.py             # Dark CSS + Plotly dark template
-│
-└── 5-opencost/                      # OPTIONAL: K8s-native cost allocation (OpenCost)
-    ├── README.md                    # Full deploy guide (DNS → Prometheus → Helm)
-    ├── TROUBLESHOOTING.md           # Common issues + recovery
-    └── k8s/
-        ├── helm-values.yaml         # Helm values (Azure pricing, Prometheus config)
-        └── ingress.yaml             # Ingress for opencost.manmas.online
 ```
 
 ---
@@ -770,6 +768,11 @@ ai           finops-ai-agent-xxx        1/1   Running
 frontend     finops-dashboard-xxx       1/1   Running
 ```
 
+> **OpenCost (☸️ page):** The dashboard already includes the OpenCost page and is
+> pre-configured to talk to `http://opencost.opencost.svc.cluster.local:9090`.
+> Deploy OpenCost itself after this step — see **Step 7b** below (Prometheus + OpenCost Helm install).
+> The page renders immediately; cost data appears once OpenCost + Prometheus are running.
+
 <details>
 <summary><strong>Troubleshooting — Step 6</strong></summary>
 
@@ -891,11 +894,9 @@ kubectl get svc -n ingress-nginx ingress-nginx-controller --watch
 In your DNS provider (wherever `manmas.online` is managed), create **A records**:
 
 ```
-app.manmas.online        →  <EXTERNAL-IP>   # FinOps Dashboard
-api.manmas.online        →  <EXTERNAL-IP>   # Platform API
-ai.manmas.online         →  <EXTERNAL-IP>   # AI Agent
-opencost.manmas.online   →  <EXTERNAL-IP>   # OpenCost official UI    (optional — 5-opencost)
-k8scost.manmas.online    →  <EXTERNAL-IP>   # K8s Cost Dashboard      (optional — 5-opencost/dashboard)
+app.manmas.online   →  <EXTERNAL-IP>   # FinOps Dashboard (all pages, including ☸️ OpenCost)
+api.manmas.online   →  <EXTERNAL-IP>   # Platform API
+ai.manmas.online    →  <EXTERNAL-IP>   # AI Agent
 ```
 
 > Let's Encrypt's HTTP-01 challenge requires DNS to resolve **before** you apply
@@ -1029,6 +1030,82 @@ curl -v http://app.manmas.online/.well-known/acme-challenge/test
 **Browser shows "Not Secure" even though certificate is Ready=True**
 
 You're on the staging issuer. Staging certs are valid but not trusted by browsers by design. Follow the "switch to production" steps above.
+
+</details>
+
+---
+
+### Step 7b — Install OpenCost + Prometheus (K8s Cost Allocation)
+
+This wires up the ☸️ OpenCost page in the dashboard. Prometheus scrapes AKS node/pod metrics; OpenCost calculates per-namespace/workload costs.
+
+**Install Prometheus:**
+```bash
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+helm install prometheus prometheus-community/prometheus \
+  --namespace opencost --create-namespace \
+  -f 4-dashboard/k8s/opencost-prometheus-values.yaml
+kubectl get pods -n opencost -l app=prometheus
+```
+
+**Install OpenCost:**
+```bash
+helm repo add opencost https://opencost.github.io/opencost-helm-chart
+helm repo update
+helm install opencost opencost/opencost \
+  --namespace opencost \
+  -f 4-dashboard/k8s/opencost-helm-values.yaml
+kubectl rollout status deployment/opencost -n opencost
+```
+
+**Verify:**
+```bash
+# All pods should be Running
+kubectl get pods -n opencost
+
+# OpenCost health check (from inside cluster or via port-forward)
+kubectl port-forward svc/opencost 9090:9090 -n opencost
+curl http://localhost:9090/healthz
+```
+
+Open `https://app.manmas.online` → sidebar → **☸️ OpenCost** — cost data appears within 5 minutes of Prometheus first scrape.
+
+<details>
+<summary><strong>Troubleshooting — Step 7b</strong></summary>
+
+**Pod `opencost` in CrashLoopBackOff**
+
+Check Prometheus is reachable:
+```bash
+kubectl logs -n opencost deployment/opencost
+# Look for: "Prometheus unreachable" or "connection refused"
+kubectl get svc -n opencost
+```
+
+Ensure the `prometheus-server` service exists in the `opencost` namespace:
+```bash
+kubectl get svc prometheus-server -n opencost
+```
+
+**No cost data in dashboard (OpenCost Online but $0)**
+
+Wait 5–10 minutes after install for Prometheus to collect initial scrape data.
+Check Prometheus targets:
+```bash
+kubectl port-forward svc/prometheus-server 9090:80 -n opencost
+# Open http://localhost:9090/targets — all targets should be UP
+```
+
+**`KeyError: 'total_cost'` on OpenCost page**
+
+Rebuild and push the dashboard image (fixed in `5_OpenCost.py`):
+```bash
+az acr login --name finopsacrmanmas
+docker buildx build --platform linux/amd64 --push \
+  -t finopsacrmanmas.azurecr.io/finops-dashboard:latest 4-dashboard/
+kubectl rollout restart deployment/finops-dashboard -n frontend
+```
 
 </details>
 
@@ -1206,7 +1283,7 @@ nslookup app.manmas.online
 | Advisor | 💡 | 7-tab intelligence centre: Priority Matrix, All Recs, Savings Leaderboard, By RG, Rightsizing, Advisor Score radar, 12-month ROI |
 | AI Chat | 🤖 | Context-aware Q&A; Explain the Bill prompts; Optimization tips — backed by live Platform API data |
 | Settings | ⚙️ | Manual sync, email alert testing, system health (admin only) |
-| OpenCost (separate) | 💸 | **OPTIONAL** — Standalone K8s cost dashboard at `k8scost.manmas.online`; see `5-opencost/` |
+| OpenCost | ☸️ | K8s pod/namespace/node/label cost allocation integrated into `app.manmas.online`; 6 tabs: Overview, Namespaces, Workloads, Nodes, Labels/Chargeback, Savings |
 
 ### Home Page — What Each Section Does
 
@@ -1344,13 +1421,12 @@ Running this platform on the chosen SKUs costs approximately:
 | ACR | Basic | ~$5 |
 | Key Vault | Standard | <$1 |
 | VNet / DNS | — | ~$2 |
-| **Core Total** | | **~$55-60/month** |
-| _(optional) Prometheus_ | 8 Gi PVC + ~100m CPU | ~$3-5/month |
-| _(optional) OpenCost_ | ~50m CPU / 64 Mi | <$1/month |
-| **With OpenCost** | | **~$60-65/month** |
+| Prometheus | 8 Gi PVC + ~100m CPU | ~$3-5/month |
+| OpenCost | ~50m CPU / 64 Mi | <$1/month |
+| **Total** | | **~$60-65/month** |
 
 Adding a Spot node pool for the AI agent can reduce costs further. The AKS free tier is used (no SLA charge).
-OpenCost itself is free and open-source; the only added cost is the Prometheus persistent volume for storing K8s metrics.
+OpenCost is free and open-source; the only added cost is the Prometheus persistent volume for storing K8s metrics.
 
 ---
 
@@ -1364,7 +1440,7 @@ OpenCost itself is free and open-source; the only added cost is the Prometheus p
 | Platform API | [2-platform-api/TROUBLESHOOTING.md](2-platform-api/TROUBLESHOOTING.md) | CrashLoopBackOff, DB connection, data sync 0 rows, email notifications |
 | AI Agent | [3-ai-agent/TROUBLESHOOTING.md](3-ai-agent/TROUBLESHOOTING.md) | OpenAI auth, tool errors, context not working, LangChain version conflicts |
 | Dashboard | [4-dashboard/TROUBLESHOOTING.md](4-dashboard/TROUBLESHOOTING.md) | Login failures, data not showing, Docker build, TLS, AI chat offline |
-| OpenCost (opt.) | [5-opencost/TROUBLESHOOTING.md](5-opencost/TROUBLESHOOTING.md) | Pod crash, Prometheus unreachable, iframe X-Frame-Options, no cost data |
+| OpenCost | [4-dashboard/TROUBLESHOOTING.md](4-dashboard/TROUBLESHOOTING.md) | Pod crash, Prometheus unreachable, no cost data, KeyError in dashboard |
 
 Step-specific troubleshooting (inline `<details>` blocks) also appears after each setup step above.
 
