@@ -402,10 +402,10 @@ spec:
         resources:
           requests:
             cpu: "250m"
-            memory: "512Mi"
+            memory: "768Mi"
           limits:
-            cpu: "1"
-            memory: "1Gi"
+            cpu: "2"
+            memory: "2Gi"
         livenessProbe:
           httpGet:
             path: /health/liveliness
