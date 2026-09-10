@@ -2,3 +2,6 @@ navuAI/labs/navuai.env
 navuAI/labs/navuai.env
 *.env
 .env
+__pycache__/
+*.pyc
+*.venv
