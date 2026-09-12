@@ -1,61 +1,74 @@
-# 1. preresisites prior start real project
-# Install Uv
-- It will install uv package manager 
-https://docs.astral.sh/uv/getting-started/installation/
+# 1. Prerequisites Prior to Starting the Real Project
 
+## Install uv
+- It will install the uv package manager.
+- https://docs.astral.sh/uv/getting-started/installation/
+
+```powershell
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
 
+## Create Virtual Environment
 
-# Create Virtual enviornmnet 
-1. initialise in working direcotry 
-uv init 
+1. Initialise in working directory
+   ```
+   uv init
+   ```
 
-2. create virtual enviorinment
-uv venv
-- It will create .venv dirctory
+2. Create virtual environment
+   ```
+   uv venv
+   ```
+   - It will create a `.venv` directory.
 
 3. Now activate it
-- To Install library in virtual we have to active it 
-.venv\Scripts\activate
+   - To install a library in the virtual environment, we have to activate it first.
+   ```
+   .venv\Scripts\activate
+   ```
 
-4. (Optional) Instlall jupyter librarya
-uv add ipykernel
+4. (Optional) Install jupyter library
+   ```
+   uv add ipykernel
+   uv add <libraryname>
+   ```
 
-uv add <libraryname>
-=============
-# 2. Create requirments.txt
-create requirments.txt file outside .venv folder
-- enter which library you want to use it here.
-langchain
-langchain-community
-langchain-openai
-langchain-xai
-langchain-google-genai
-python-dotenv
+---
 
-- don't give any version so it will install recent versions in it
+# 2. Create requirements.txt
 
-- once installed in srv folder check pyproject.toml file you will see all version details of this librarary. 
+- Create a `requirements.txt` file outside the `.venv` folder.
+- Enter which libraries you want to use here:
+  ```
+  langchain
+  langchain-community
+  langchain-openai
+  langchain-xai
+  langchain-google-genai
+  python-dotenv
+  ```
+- Don't give any version, so it will install the most recent versions.
+- Once installed, check the `pyproject.toml` file in the project folder — you will see all the version details of these libraries.
 
-=============
+---
 
-# 3. create the API keys
-- - Generate the API key
-1. Google
-https://aistudio.google.com/
+# 3. Create the API Keys
 
-2. Grok
-https://console.groq.com/keys
+Generate the API key from each provider:
 
-3. OpenAI key
-https://platform.openai.com/
+1. **Google** — https://aistudio.google.com/
+2. **Grok** — https://console.groq.com/keys
+3. **OpenAI** — https://platform.openai.com/
 
-=============
+---
 
-# 4. Cretae .env file
-- create .env outside the .venv folder 
-- enter the api key with key=value pair
+# 4. Create .env File
 
-OPENAI_API_KEY= ""
-GROQ_API_KEY= ""
-GOOGLE_API_KEY= ""
+- Create `.env` outside the `.venv` folder.
+- Enter the API key as a key=value pair.
+
+```
+OPENAI_API_KEY=""
+GROQ_API_KEY=""
+GOOGLE_API_KEY=""
+```
